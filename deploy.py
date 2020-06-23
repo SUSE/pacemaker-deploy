@@ -27,7 +27,6 @@ def create(filename):
     #
     # Run phases in sequence
     #
-    """
     res = prepare(**env)
     if tasks.has_failed(res):
         logging.critical(f"Phase 'prepare' failed")
@@ -42,7 +41,6 @@ def create(filename):
     if tasks.has_failed(res):
         logging.critical(f"Phase 'upload' failed")
         return res
-    """
 
     res = provision(name)
     if tasks.has_failed(res):
