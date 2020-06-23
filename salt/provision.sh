@@ -28,27 +28,27 @@ install_salt_minion () {
     reg_code=$1
     # If required, register
     if [[ $reg_code != "" ]]; then
-      # Check SLE version
-      source /etc/os-release
-      # Register the system on SCC
-      SUSEConnect -r "$reg_code"
+        # Check SLE version
+        source /etc/os-release
+        # Register the system on SCC
+        SUSEConnect -r "$reg_code"
 
-      # Register the modules accordingly with the SLE version.
-      if [[ $VERSION_ID =~ ^12\.? ]]; then
-        SUSEConnect -p sle-module-adv-systems-management/12/x86_64
-      elif [[ $VERSION_ID =~ ^15\.? ]]; then
-        SUSEConnect -p sle-module-basesystem/$VERSION_ID/x86_64
-      else
-        echo "SLE Product version not supported by this script. Please, use version 12 or higher."
-        exit 1
-      fi
+        # Register the modules accordingly with the SLE version.
+        if [[ $VERSION_ID =~ ^12\.? ]]; then
+            SUSEConnect -p sle-module-adv-systems-management/12/x86_64
+        elif [[ $VERSION_ID =~ ^15\.? ]]; then
+            SUSEConnect -p sle-module-basesystem/$VERSION_ID/x86_64
+        else
+            echo "SLE Product version not supported by this script. Please, use version 12 or higher."
+            exit 1
+        fi
     fi
 
     # We have to force refresh the repos and the keys (keys may change during lifetime of this OS/image)
     zypper --non-interactive --gpg-auto-import-keys refresh --force --services
     zypper --non-interactive install salt-minion
 
-    # deregister
+    # Deregister
     if [[ $reg_code != "" ]]; then
        SUSEConnect -d
     fi
@@ -57,8 +57,6 @@ install_salt_minion () {
 bootstrap_salt () {
     mv /tmp/salt /root || true
 
-    # Check if qa_mode is enabled
-    [[ "$(get_grain qa_mode /tmp/grains)" == "true" ]] && qa_mode=1
     # Get registration code
     reg_code=$(get_grain reg_code /tmp/grains)
     # Check if salt-call is installed
@@ -72,7 +70,7 @@ bootstrap_salt () {
         zypper lr || sudo /usr/sbin/registercloudguest --force-new
     fi
 
-    # Install salt if qa_mode is False and salt is not already installed
+    # Install salt if not already installed
     if [[ ${salt_installed} != 1 ]]; then
         install_salt_minion ${reg_code}
     fi
@@ -85,8 +83,8 @@ bootstrap_salt () {
 
 config () {
     salt-call \
-	    --local \
-		--file-root=/root/salt/state \
+        --local \
+        --file-root=/root/salt/state \
         --pillar-root=/root/salt/pillar \
         --log-level=info \
         --log-file=/var/log/salt-config.log \
@@ -98,13 +96,13 @@ config () {
 
 fire () {
 	salt-call \
-		--local \
-		--log-level=info \
-		--log-file=/var/log/salt-fire.log \
-		--log-file-level=debug \
-		--retcode-passthrough \
-		$(salt_output_colored) \
-		state.highstate saltenv=base || exit 1
+        --local \
+        --log-level=info \
+        --log-file=/var/log/salt-fire.log \
+        --log-file-level=debug \
+        --retcode-passthrough \
+        $(salt_output_colored) \
+        state.highstate saltenv=base || exit 1
 }
 
 print_help () {
@@ -116,7 +114,7 @@ from top to bottom in this help text.
 Supported Options (if no options are provided (excluding -l) all the steps will be executed):
   -s               Bootstrap salt installation and configuration. It will register to SCC channels if needed
   -c               Execute predeployment operations (update hosts and hostnames, install support packages, etc)
-  -f               Execute deployment operations (install sap, ha, drbd, etc)
+  -f               Execute deployment operations (fire up corosync, pacemaker, etc)
   -l [LOG_FILE]    Append the log output to the provided file
   -h               Show this help.
 EOF

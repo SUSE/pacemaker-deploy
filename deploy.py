@@ -19,8 +19,12 @@ def create(filename):
     #
     # Load environment from file
     #
-    with open(filename, "r") as f:
-        env = json.load(f)
+    try:
+        with open(filename, "r") as f:
+            env = json.load(f)
+    except Exception as e:
+        logging.exception(e)
+        return tasks.failure(f"Exception: {e.args}")
 
     name = env["name"]
     
@@ -69,12 +73,8 @@ def prepare(**env):
     #
     # Print environment
     #
-    logging.info("[X] Environment:")
+    logging.info(f"[X] Environment:\n{json.dumps(env, indent = 4)}\n")
     
-    logging.info(json.dumps(env, indent = 4))
-        
-    logging.info("-----------------------------\n")
-
     #
     # Copy infrastructure files
     #
@@ -83,8 +83,13 @@ def prepare(**env):
     # terraform files
     shutil.copytree(utils.path_infrastructure(env["provider"]), path)
 
+    logging.debug(f"Copied tree [{utils.path_infrastructure(env['provider'])}] -> [{path}]")
+
     # render terraform input variables from environment
     utils.template_render(utils.path_config(env["provider"]), "terraform.tfvars.j2", path, **env)
+
+    with open(f"{path}/terraform.tfvars", "r") as f:
+        logging.debug(f"Rendered terraform.tfvars =\n{f.read()}")
 
     # save the environment
     utils.environment_save(name, **env)
@@ -164,6 +169,8 @@ def infrastructure(name):
     # save enriched enviroment data        
     utils.environment_save(name, **env)
 
+    logging.debug(f"Updated environment =\n {json.dumps(env, indent = 4)}\n")
+
     logging.info("OK\n")
     
     #
@@ -180,13 +187,20 @@ def infrastructure(name):
             logging.critical(tasks.get_stderr(res))
             return res
 
+        with open(f"{path}/node-0{index + 1}.grains", "r") as f:
+            logging.debug(f"Rendered node-0{index + 1}.grains =\n {f.read()}")
+
     # if there is a iscsi device, render grains file for iscsi using enviroment
     if "public_ip" in env["terraform"]["iscsi"]:
         utils.template_render(utils.path_config(env["provider"]), "iscsi.grains.j2", path, **env)
+        with open(f"{path}/iscsi.grains", "r") as f:
+            logging.debug(f"Rendered iscsi.grains =\n {f.read()}")
 
     # if there is a monitor device, render grains file for monitor using enviroment
     if "public_ip" in env["terraform"]["monitor"]:
         utils.template_render(utils.path_config(env["provider"]), "monitor.grains.j2", path, **env)
+        with open(f"{path}/monitor.grains", "r") as f:
+            logging.debug(f"Rendered monitor.grains =\n {f.read()}")
     
     logging.info("OK\n")
 
@@ -230,7 +244,7 @@ def upload(name):
         uploads.append( (host, "./salt", "/tmp/salt") )
         uploads.append( (host, f"{path}/monitor.grains", "/tmp/grains") )
 
-    logging.debug(uploads)
+    logging.debug(f"Uploads = {uploads}")
 
     logging.info("OK\n")
     
@@ -244,26 +258,27 @@ def upload(name):
         if tasks.has_failed(res):
             logging.critical(f"Cannot copy [{origin}] -> [{host}:{destiny}]")
             logging.critical(tasks.get_stderr(res))
-        logging.info(f"[{origin}] -> [{host}:{destiny}]")
+        logging.debug(f"Uploaded [{origin}] -> [{host}:{destiny}]")
     
     logging.info("OK\n")
 
     return tasks.success()
 
 
-def provision_task(host):
+def provision_task(host, phases):
     """
     Executes the provisioning in a given host.
     """
     logging.info(f"[{host}] <- Provision launching...")
-    
-    res = ssh.run("root", "linux", host, "sh /tmp/salt/provision.sh -l /var/log/provision.log")
-    if tasks.has_failed(res):
-        logging.error(f"[{host}] <- provisioning failed")
-        logging.error(tasks.get_stderr(res))
-    else:
-        logging.info(f"[{host}] <- provisioning success")
-        
+
+    for dir, option, phase in phases:
+        res = ssh.run("root", "linux", host, f"sh /{dir}/salt/provision.sh -{option} -l /var/log/provision.log")
+        if tasks.has_failed(res):
+            logging.error(f"[{host}] <- provisioning for [{phase}] phase FAILED =\n {tasks.get_stderr(res)}")
+            return res
+
+    logging.debug(f"[{host}] <- provisioning success")
+
     return res
 
 #
@@ -279,19 +294,19 @@ def clock_task(subject):
     global clock_task_mutex
     global clock_task_active
     
-    logging.info(f"[{subject}] Starting at {time.strftime('%X')}")
+    logging.debug(f"[{subject}] STARTING")
 
     elapsed = 0
     while(True):
         with clock_task_mutex:
             if clock_task_active == False:
-                logging.info(f"[{subject}] Finished at {time.strftime('%X')}")
+                logging.debug(f"[{subject}] FINISHED in {elapsed} seconds")
                 return
         
         time.sleep(1)
         elapsed = elapsed + 1
         if elapsed % 15 == 0:
-            logging.info(f"[{subject}] {elapsed} seconds elapsed")
+            logging.debug(f"[{subject}] {elapsed} seconds elapsed")
 
 
 def provision(name):
@@ -302,9 +317,8 @@ def provision(name):
     # Check deployment does exist
     #
     res, path, env = utils.deployment_verify(name)
-
     if tasks.has_failed(res):
-        logging.critical(get_stderr(res))
+        logging.critical(tasks.get_stderr(res))
         return res
 
     #
@@ -326,7 +340,7 @@ def provision(name):
     if "public_ip" in env["terraform"]["monitor"]:
         hosts.append(env["terraform"]["monitor"]["public_ip"])
 
-    logging.debug(hosts)
+    logging.debug(f"Host to provision = {hosts}")
 
     logging.info("OK\n")
     
@@ -336,15 +350,16 @@ def provision(name):
     logging.info("[X] Launching provisioning...")
 
     # Prepare tasks
+    phases = [("tmp", "s", "install"), ("root", "c", "config"), ("root", "f", "fire")]
     global clock_task_mutex
     global clock_task_active
     clock_task_active = True
     clock = threading.Thread(target=clock_task, args=("provision",))
-    provision_tasks = [threading.Thread(target=provision_task, args=(host,)) for host in hosts]
+    provision_tasks = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts]
 
     # Execute provisioning in parallel
     clock.start() 
-    
+
     for task in provision_tasks:
         task.start()
 
@@ -384,9 +399,10 @@ def destroy(name):
 
     res = terraform.destroy(path)
     if tasks.has_failed(res):
-        logging.error(f"Cannot destroy Terraform on {path}")
-        logging.error(tasks.get_stderr(res))
+        logging.critical(tasks.get_stderr(res))
         return res
+    else:
+        logging.debug(tasks.get_stdout(res))
 
     logging.info("OK\n")
 
@@ -409,7 +425,8 @@ if __name__ == "__main__":
 
 Usage:
     deploy.py create <deployment_file> [--quiet] [(-l | --logfile) <log_filename>]
-    deploy.py destroy <deployment_name> [--quiet] [(-l | --logfile) <log_filename>]
+    deploy.py destroy <deployment_name> 
+    deploy.py provision --host <host> (--from | --only) <provision_phase> 
     deploy.py (-h | --help)
     deploy.py --version
 
@@ -436,10 +453,14 @@ Options:
             handlers.append(logging.FileHandler(logfile))
 
         logging.basicConfig(level=logging.DEBUG,
-                    format="[%(asctime)s] %(levelname)s - %(message)s",
+                    format="[%(asctime)s] %(levelname)s - %(module)s[%(lineno)d] - %(message)s",
                     datefmt="%m/%d/%Y %I:%M:%S %p",
                     handlers=handlers) 
         
+        # if no handlers, full disable logging
+        if len(handlers) == 0:
+            logging.disable(1024)
+
         # execute actions
         if arguments["create"]:
             deployment_file = arguments["<deployment_file>"]
@@ -449,6 +470,25 @@ Options:
         if arguments["destroy"]:
             deployment_name = arguments["<deployment_name>"]
             res = destroy(deployment_name)
+            return
+
+        if arguments["provision"]:
+            host = arguments["<host>"]
+            phase = arguments["<provision_phase>"]
+
+            phases = { "install": ("tmp", "s", "install"), "config":("root", "c", "config"), "fire": ("root", "f", "fire") }
+            
+            if arguments["--only"]:
+                res = provision_task(host, [ phases[phase] ])
+            else:
+                provision_phases = [ phases[phase] ]
+                if phase == "install":
+                    provision_phases.append(phases["config"])
+                    provision_phases.append(phases["fire"])
+                if phase == "config":
+                    provision_phases.append(phases["fire"])
+
+                res = provision_task(host, provision_phases)
             return
 
     from docopt import docopt
