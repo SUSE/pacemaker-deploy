@@ -3,7 +3,7 @@ import subprocess
 
 def run(command):
     """
-    Executes a given command. Return a tuple with (returncode, stdout, stderr)
+    Executes a given command. Return a tuple with (return_code, stdout, stderr)
     """
     pipes = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     stdout, stderr = pipes.communicate()

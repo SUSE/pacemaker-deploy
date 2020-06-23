@@ -27,11 +27,6 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-**/.terraform
-**/terraform.tfstate*
-**/terraform*.tfvars
-deployed/*
-
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -132,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Deployed clusters
+deployed/*
+
+# Deployment files
+*.json
