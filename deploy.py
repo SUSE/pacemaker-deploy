@@ -369,7 +369,7 @@ def destroy(name):
     #
     res, path, env = utils.deployment_verify(name)
     if tasks.has_failed(res):
-        logging.critical(get_stderr(res))
+        logging.critical(tasks.get_stderr(res))
         return res
 
     #

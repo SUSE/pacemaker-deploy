@@ -1,12 +1,16 @@
-# pacemaker-deploy
-Pacemaker cluster deployment made easy
+# Pacemaker cluster deployment made easy
+
 ___
-# Installation
-zypper in python3-Jinja2 python3-docopt terraform sshpass
+# Prerequisites
+zypper install terraform sshpass python3-Jinja2 python3-docopt
 
 ___
 # Use
  - deploy.py --help
+
+___
+# Architecture
+ 
 
 ___
 # TODO
