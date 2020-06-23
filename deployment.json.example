@@ -11,7 +11,7 @@
 			"shared_storage_type": "shared-disk"
 		},
 		"node": {
-			"count": 1
+			"count": 3
 		},
 		"iscsi": {
 		},
