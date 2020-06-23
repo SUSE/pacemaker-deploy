@@ -1,0 +1,32 @@
+provider: libvirt
+
+role: iscsi
+
+host_ip: "{{ terraform.iscsi.private_ip }}"
+
+iscsi_srv_ip: "{{ terraform.iscsi.private_ip }}"
+
+#iscsi_dev: ${var.iscsi_dev}
+
+#iscsi_disks: ${var.iscsi_disks}
+
+reg_email: "{{ salt.common.reg_email }}"
+
+reg_code: "{{ salt.common.reg_code }}"
+
+reg_additional_modules: {}
+
+ha_repo: "{{ salt.common.ha_repo }}"
+
+#additional_packages: [${join(", ", formatlist("'%s'", var.additional_packages))}]
+
+partitions:
+  1:
+    start: 1
+    end: 33%
+  2:
+    start: 33%
+    end: 67%
+  3:
+    start: 67%
+    end: 100%

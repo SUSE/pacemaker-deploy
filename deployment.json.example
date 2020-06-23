@@ -1,0 +1,36 @@
+{
+	"name": "test",
+	"provider": "libvirt",
+	"terraform": {
+		"workspace": "<workspace>",
+		"common": {
+			"qemu_uri": "qemu+ssh://vmm@gollum-p1.qa.suse.de/system",
+			"volume_name": "SLES4SAP-15_SP1",
+			"storage_pool": "terraform",
+			"ip_range": "192.168.144.0/24",
+			"shared_storage_type": "shared-disk"
+		},
+		"node": {
+			"count": 1
+		},
+		"iscsi": {
+		},
+		"monitor": {
+		}
+	},
+	"salt": {
+		"common": {
+			"reg_email": "<email>",
+			"reg_code": "<code>",
+			"ha_repo": "http://download.opensuse.org/repositories/network:ha-clustering:sap-deployments:devel"
+		},
+		"node": {
+			"network_domain": "tf.local"
+		},
+		"iscsi": {
+		},
+		"monitor": {
+			"network_domain": "tf.local"
+		}
+	}
+}

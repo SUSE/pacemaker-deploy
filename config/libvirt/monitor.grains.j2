@@ -1,0 +1,27 @@
+provider: libvirt
+
+role: monitor
+
+name_prefix: "{{ terraform.workspace }}-monitor"
+
+hostname: "{{ terraform.workspace }}-monitor"
+
+network_domain: "{{ salt.monitor.network_domain }}"
+
+host_ips: ["{{ terraform.monitor.private_ip }}"]
+
+host_ip: "{{ terraform.monitor.private_ip }}"
+
+monitored_hosts: {{ jsonify(terraform.node.private_ips) }}
+
+reg_email: "{{ salt.common.reg_email }}"
+
+reg_code: "{{ salt.common.reg_code }}"
+
+reg_additional_modules: {}
+
+ha_repo: "{{ salt.common.ha_repo }}"
+
+#additional_packages: [${join(", ", formatlist("'%s'", var.additional_packages))}]
+
+#authorized_keys: [${trimspace(file(var.public_key_location))}]
