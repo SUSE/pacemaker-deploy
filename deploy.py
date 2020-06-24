@@ -169,7 +169,7 @@ def infrastructure(name):
     # save enriched enviroment data        
     utils.environment_save(name, **env)
 
-    logging.debug(f"Updated environment =\n {json.dumps(env, indent = 4)}\n")
+    logging.debug(f"Updated environment =\n{json.dumps(env, indent = 4)}\n")
 
     logging.info("OK\n")
     
@@ -188,19 +188,19 @@ def infrastructure(name):
             return res
 
         with open(f"{path}/node-0{index + 1}.grains", "r") as f:
-            logging.debug(f"Rendered node-0{index + 1}.grains =\n {f.read()}")
+            logging.debug(f"Rendered node-0{index + 1}.grains =\n{f.read()}")
 
     # if there is a iscsi device, render grains file for iscsi using enviroment
     if "public_ip" in env["terraform"]["iscsi"]:
         utils.template_render(utils.path_config(env["provider"]), "iscsi.grains.j2", path, **env)
         with open(f"{path}/iscsi.grains", "r") as f:
-            logging.debug(f"Rendered iscsi.grains =\n {f.read()}")
+            logging.debug(f"Rendered iscsi.grains =\n{f.read()}")
 
     # if there is a monitor device, render grains file for monitor using enviroment
     if "public_ip" in env["terraform"]["monitor"]:
         utils.template_render(utils.path_config(env["provider"]), "monitor.grains.j2", path, **env)
         with open(f"{path}/monitor.grains", "r") as f:
-            logging.debug(f"Rendered monitor.grains =\n {f.read()}")
+            logging.debug(f"Rendered monitor.grains =\n{f.read()}")
     
     logging.info("OK\n")
 
@@ -270,14 +270,36 @@ def provision_task(host, phases):
     Executes the provisioning in a given host.
     """
     logging.info(f"[{host}] <- Provision launching...")
-
+    
+    #
+    # Execute provisioning
+    #
     for dir, option, phase in phases:
         res = ssh.run("root", "linux", host, f"sh /{dir}/salt/provision.sh -{option} -l /var/log/provision.log")
         if tasks.has_failed(res):
-            logging.error(f"[{host}] <- provisioning for [{phase}] phase FAILED =\n {tasks.get_stderr(res)}")
-            return res
+            break
 
-    logging.debug(f"[{host}] <- provisioning success")
+    #
+    # Independently of success of provisioning process, cat logs
+    #
+    destiny = f"./{host}.tmp"
+    rcopy = ssh.copy_from_host("root", "linux", host, "/var/log/provision.log", destiny)
+    if tasks.has_succeeded(rcopy):
+        with open(destiny, "r") as f:
+            logging.debug(f"[{host}] provision logs =\n{f.read()}")
+    rcopy = ssh.copy_from_host("root", "linux", host, "/var/log/salt/minion", destiny)
+    if tasks.has_succeeded(rcopy):
+        with open(destiny, "r") as f:
+            logging.debug(f"[{host}] provision minion logs =\n{f.read()}")
+    tasks.run(f"rm -f {destiny}")
+
+    #
+    # Log global result
+    #
+    if tasks.has_succeeded(res):
+        logging.debug(f"[{host}] <- provisioning success")
+    else:
+        logging.error(f"[{host}] <- provisioning for [{phase}] phase FAILED =\n{tasks.get_stderr(res)}")
 
     return res
 
@@ -350,7 +372,7 @@ def provision(name):
     logging.info("[X] Launching provisioning...")
 
     # Prepare tasks
-    phases = [("tmp", "s", "install"), ("root", "c", "config"), ("root", "f", "fire")]
+    phases = [("tmp", "i", "install"), ("root", "c", "config"), ("root", "s", "start")]
     global clock_task_mutex
     global clock_task_active
     clock_task_active = True
@@ -476,7 +498,7 @@ Options:
             host = arguments["<host>"]
             phase = arguments["<provision_phase>"]
 
-            phases = { "install": ("tmp", "s", "install"), "config":("root", "c", "config"), "fire": ("root", "f", "fire") }
+            phases = { "install": ("tmp", "i", "install"), "config":("root", "c", "config"), "start": ("root", "s", "start") }
             
             if arguments["--only"]:
                 res = provision_task(host, [ phases[phase] ])
@@ -484,9 +506,9 @@ Options:
                 provision_phases = [ phases[phase] ]
                 if phase == "install":
                     provision_phases.append(phases["config"])
-                    provision_phases.append(phases["fire"])
+                    provision_phases.append(phases["start"])
                 if phase == "config":
-                    provision_phases.append(phases["fire"])
+                    provision_phases.append(phases["start"])
 
                 res = provision_task(host, provision_phases)
             return

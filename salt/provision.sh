@@ -54,7 +54,7 @@ install_salt_minion () {
     fi
 }
 
-bootstrap_salt () {
+install () {
     mv /tmp/salt /root || true
 
     # Get registration code
@@ -86,19 +86,17 @@ config () {
         --local \
         --file-root=/root/salt/state \
         --pillar-root=/root/salt/pillar \
-        --log-level=info \
-        --log-file=/var/log/salt-config.log \
+        --log-level=debug \
         --log-file-level=debug \
         --retcode-passthrough \
         $(salt_output_colored) \
         state.highstate || exit 1
 }
 
-fire () {
+start () {
 	salt-call \
         --local \
-        --log-level=info \
-        --log-file=/var/log/salt-fire.log \
+        --log-level=debug \
         --log-file-level=debug \
         --retcode-passthrough \
         $(salt_output_colored) \
@@ -112,30 +110,30 @@ the selected flags. The actions are always executed in the same order (if multip
 from top to bottom in this help text.
 
 Supported Options (if no options are provided (excluding -l) all the steps will be executed):
-  -s               Bootstrap salt installation and configuration. It will register to SCC channels if needed
+  -i               Bootstrap salt installation and configuration. It will register to SCC channels if needed
   -c               Execute predeployment operations (update hosts and hostnames, install support packages, etc)
-  -f               Execute deployment operations (fire up corosync, pacemaker, etc)
+  -s               Execute deployment operations (fire up corosync, pacemaker, etc)
   -l [LOG_FILE]    Append the log output to the provided file
   -h               Show this help.
 EOF
 }
 
 argument_number=0
-while getopts ":hscfl:" opt; do
+while getopts ":hicsl:" opt; do
     argument_number=$((argument_number + 1))
     case $opt in
         h)
             print_help
             exit 0
             ;;
-        s)
-            execute_bootstrap_salt=1
+        i)
+            execute_install=1
             ;;
         c)
             execute_config=1
             ;;
-        f)
-            execute_fire=1
+        s)
+            execute_start=1
             ;;
         l)
             log_to_file=$OPTARG
@@ -154,12 +152,12 @@ if [[ -n $log_to_file ]]; then
 fi
 
 if [ $argument_number -eq 0 ]; then
-    bootstrap_salt
+    install
     config
-    fire
+    start
 else
-    [[ -n $execute_bootstrap_salt ]] && bootstrap_salt
+    [[ -n $execute_install ]] && install
     [[ -n $execute_config ]] && config
-    [[ -n $execute_fire ]] && fire
+    [[ -n $execute_fire ]] && start
 fi
 exit 0
