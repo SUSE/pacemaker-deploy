@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 
 import jinja2
 
@@ -100,3 +101,21 @@ def template_render(src_dir, template_name, dst_dir, **env):
     with open(output_path, "w+") as output_file:
         output_file.write( template.render(**env) )
 
+
+#
+# Others
+#
+def get_log_level(loglevel, default):
+
+    if loglevel is None:
+        return default
+        
+    loglevels = {
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARNING": logging.WARNING,
+        "ERROR": logging.ERROR,
+        "CRITICAL": logging.CRITICAL
+    }
+
+    return loglevels[loglevel.upper()] if loglevel.upper() in loglevels else default

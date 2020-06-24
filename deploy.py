@@ -446,24 +446,34 @@ if __name__ == "__main__":
         """Pacemaker Deploy.
 
 Usage:
-    deploy.py create <deployment_file> [--quiet] [(-l | --logfile) <log_filename>]
-    deploy.py destroy <deployment_name> 
-    deploy.py provision --host <host> (--from | --only) <provision_phase> 
+    deploy.py create DEPLOYMENT_FILE [-q] [-f LOG_FILE] [-l LOG_LEVEL]
+    deploy.py destroy DEPLOYMENT_NAME [-q] [-f LOG_FILE] [-l LOG_LEVEL]
+    deploy.py provision HOST (--only=PROVISION_PHASE | --from=PROVISION_PHASE) [-q] [-f LOG_FILE] [-l LOG_LEVEL]
     deploy.py (-h | --help)
-    deploy.py --version
+    deploy.py (-v | --version)
+
+Arguments:
+    DEPLOYMENT_FILE                      File containing deployment specification
+    DEPLOYMENT_NAME                      Name of the deployment (specified on creation inside specification file)
+    HOST                                 Host IP to provision
 
 Options:
-    -h --help     Show this screen.
-    --version     Show version.
-    --quiet       Do not log to stdout
-    -l --logfile  Send logging to file
+    -h, --help                           Show this screen.
+    -v, --version                        Show version.
+    -q, --quiet                          Do not log to stdout
+    -f LOG_FILE, --logfile=LOG_FILE      Send logging to file
+    -l LOG_LEVEL, --loglevel=LOG_LEVEL   Logging level (one of DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: DEBUG]
+    --only=PROVISION_PHASE               Executes only the provision phase specified (one of INSTALL, CONFIG or START)
+    --from=PROVISION_PHASE               Executes all provision phases starting from specified
+
+Examples:
+    deploy.py create three_node_cluster.json -q --logfile=output.log 
+    deploy.py destroy cluster1 --loglevel=WARN
+    deploy.py provision --host=10.162.30.40 --from=CONFIG -l CRITICAL
+    deploy.py -h
+    deploy.py --version
 
         """
-        # show help or version if asked for
-        if arguments["--help"] or arguments["--version"]:
-            print(arguments)
-            return
-
         # log handlers
         handlers = []
 
@@ -474,7 +484,8 @@ Options:
             logfile = arguments["<log_filename>"]
             handlers.append(logging.FileHandler(logfile))
 
-        logging.basicConfig(level=logging.DEBUG,
+        loglevel = utils.get_log_level(arguments["--loglevel"], logging.DEBUG)
+        logging.basicConfig(level=loglevel,
                     format="[%(asctime)s] %(levelname)s - %(module)s[%(lineno)d] - %(message)s",
                     datefmt="%m/%d/%Y %I:%M:%S %p",
                     handlers=handlers) 
@@ -485,34 +496,40 @@ Options:
 
         # execute actions
         if arguments["create"]:
-            deployment_file = arguments["<deployment_file>"]
+            deployment_file = arguments["DEPLOYMENT_FILE"]
             res = create(deployment_file)
             return
 
         if arguments["destroy"]:
-            deployment_name = arguments["<deployment_name>"]
+            deployment_name = arguments["DEPLOYMENT_NAME"]
             res = destroy(deployment_name)
             return
 
         if arguments["provision"]:
-            host = arguments["<host>"]
-            phase = arguments["<provision_phase>"]
+            host = arguments["HOST"]
+            phase = (arguments["--from"] or arguments["--only"]).upper()
+            only = arguments["--only"] != None
 
-            phases = { "install": ("tmp", "i", "install"), "config":("root", "c", "config"), "start": ("root", "s", "start") }
+            phases = { "INSTALL": ("tmp", "i", "install"), "CONFIG":("root", "c", "config"), "START": ("root", "s", "start") }
             
-            if arguments["--only"]:
+            if not phase in phases:
+                print(f"Used PROVISION_PHASE ({phase}) not in [INSTALL, CONFIG, START]")
+                print(f"Use deploy.py --help to show usage")
+                return
+            
+            if only:
                 res = provision_task(host, [ phases[phase] ])
             else:
                 provision_phases = [ phases[phase] ]
-                if phase == "install":
-                    provision_phases.append(phases["config"])
-                    provision_phases.append(phases["start"])
-                if phase == "config":
-                    provision_phases.append(phases["start"])
+                if phase == "INSTALL":
+                    provision_phases.append(phases["CONFIG"])
+                    provision_phases.append(phases["START"])
+                if phase == "CONFIG":
+                    provision_phases.append(phases["START"])
 
                 res = provision_task(host, provision_phases)
             return
 
     from docopt import docopt
-    arguments = docopt(main.__doc__, version='Pacemaker Deploy 0.1')
+    arguments = docopt(main.__doc__, version='Pacemaker Deploy 0.1.0')
     main(arguments)
