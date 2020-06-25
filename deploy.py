@@ -481,7 +481,7 @@ Examples:
             handlers.append(logging.StreamHandler())
         
         if arguments["--logfile"]:
-            logfile = arguments["<log_filename>"]
+            logfile = arguments["--logfile"]
             handlers.append(logging.FileHandler(logfile))
 
         loglevel = utils.get_log_level(arguments["--loglevel"], logging.DEBUG)
