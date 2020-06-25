@@ -2,7 +2,12 @@
 
 ___
 # Prerequisites
+
 zypper install terraform sshpass python3-Jinja2 python3-docopt
+
+pip install inquirer
+
+zypper install python3-pyfiglet python3-colorama python3-termcolor
 
 ___
 # Use
