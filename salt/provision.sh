@@ -158,6 +158,6 @@ if [ $argument_number -eq 0 ]; then
 else
     [[ -n $execute_install ]] && install
     [[ -n $execute_config ]] && config
-    [[ -n $execute_fire ]] && start
+    [[ -n $execute_start ]] && start
 fi
 exit 0
