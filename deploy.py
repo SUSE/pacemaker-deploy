@@ -300,7 +300,10 @@ def provision_task(host, phases):
     for dir, option, phase in phases:
         res = ssh.run("root", "linux", host, f"sh /{dir}/salt/provision.sh -{option} -l /var/log/provision.log")
         if tasks.has_failed(res):
+            logging.info(f"[{host}] <- phase {phase} failed")
             break
+        else:
+            logging.info(f"[{host}] <- phase {phase} executed")
 
     #
     # Independently of success of provisioning process, cat logs
@@ -322,7 +325,7 @@ def provision_task(host, phases):
     if tasks.has_succeeded(res):
         logging.info(f"[{host}] <- provisioning success")
     else:
-        logging.error(f"[{host}] <- provisioning for [{phase}] phase FAILED =\n{tasks.get_stderr(res)}")
+        logging.error(f"[{host}] <- provisioning FAILED, continue provisioning with => deploy.py provision --host={host} --from={phase}")
 
     return res
 
@@ -350,7 +353,7 @@ def clock_task(subject):
         
         time.sleep(1)
         elapsed = elapsed + 1
-        if elapsed % 20 == 0:
+        if elapsed % 30 == 0:
             logging.info(f"[{subject}] {elapsed} seconds elapsed")
 
 
@@ -400,16 +403,21 @@ def provision(name):
     global clock_task_active
     clock_task_active = True
     clock = threading.Thread(target=clock_task, args=("provision",))
-    provision_tasks = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts]
+    provision_join_tasks = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts[1:]]
 
-    # Execute provisioning in parallel
+    # Execute provisioning in mostly parallel (first a node initializing the cluster, the the rest joining in parallel)
     clock.start() 
 
-    for task in provision_tasks:
-        task.start()
+    logging.info(f"Provisioning init node")
+    res = provision_task(hosts[0], phases)
+    if tasks.has_succeeded(res):
+        logging.info(f"Provisioning join nodes")
 
-    for task in provision_tasks:
-        task.join()
+        for task in provision_join_tasks:
+            task.start()
+
+        for task in provision_join_tasks:
+            task.join()
     
     with clock_task_mutex:        
         clock_task_active = False
