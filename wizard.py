@@ -12,6 +12,7 @@ import utils
 
 colorama.init()
 
+
 def panel_show(message, font = ""):
     color = "green"
     high = None
@@ -21,12 +22,6 @@ def panel_show(message, font = ""):
     else:
         message_to_print = message
     print(colored(message_to_print, color, high, attrs))
-
-
-def theme_load(theme_file):
-    with open(f"{utils.path_config()}/wizard.theme.json", "r") as f:
-        theme_data = f.read()
-    return inquirer.themes.load_theme_from_json(theme_data)
 
 
 #
@@ -82,6 +77,7 @@ def validate_sbd_disk_size(answers, sbd_disk_size):
 
     return True
 
+
 #
 # Question blocks
 #
@@ -98,82 +94,61 @@ def intro(theme):
     return inquirer.prompt(questions, theme=theme)
 
 
-def terraform_generic(theme):
-    terraform_generic_questions = [
-        inquirer.Text('workspace',
-                      message='Enter Terraform workspace'),
-    ]
-    return inquirer.prompt(terraform_generic_questions, theme=theme)
-
-
-def libvirt_terraform(theme):
+def libvirt_terraform(defaults, theme):
+    terraform_answers = {}
 
     panel_show("TERRAFORM")
-    terraform_answers = terraform_generic(theme)
-    print("")
 
+    """
+            "source_image": "",
+            "volume_name": "SLES4SAP-15_SP1",
+            "network_name": "",
+            "isolated_network_bridge": "virbr128",
+    """
 
     panel_show("Common questions about the cluster")
     common_questions = [
-        inquirer.Text('qemu_uri',
-                      message='Enter URI for the KVM hypervisor',
-                      default="qemu:///system"),
-        inquirer.Text('storage_pool', 
-                      message='Enter storage pool',
-                      default="default"),
-        inquirer.Text('ip_range',
-                      message='Enter IP range (cidr format, eg: 192.168.144.0/24)',
+        inquirer.Text("qemu_uri",
+                      message="Enter URI for the KVM hypervisor",
+                      default=defaults["common"]["qemu_uri"]),
+        inquirer.Text("storage_pool", 
+                      message="Enter storage pool",
+                      default=defaults["common"]["storage_pool"]),
+        inquirer.Text("ip_range",
+                      message="Enter IP range (cidr format, eg: 192.168.144.0/24)",
                       validate=validate_ip_range),
-        inquirer.List('shared_storage_type',
-                      message='Select the shared storage type',
-                      choices=['shared-disk', 'iscsi'], 
+        inquirer.List("shared_storage_type",
+                      message="Select the shared storage type",
+                      choices=["shared-disk", "iscsi"], 
                       validate=validate_shared_storage_type),
-        inquirer.Text('sbd_disk_size',
-                      message='Enter the size in bytes of the shared storage device disk', 
-                      validate=validate_sbd_disk_size, 
+        inquirer.Text("sbd_disk_size",
+                      message="Enter the size in bytes of the shared storage device disk", 
+                      validate=validate_sbd_disk_size,
+                      default=defaults["common"]["sbd_disk_size"],
                       ignore=lambda answers: answers["shared_storage_type"]=="iscsi"),
     ]
     terraform_answers["common"] = inquirer.prompt(common_questions, theme=theme)
     print("")
 
-
-    panel_show("Let's talk about the nodes of your cluster")
-    node_questions = [
-        inquirer.Text('count', 
-                      message='Enter the number of nodes',
-                      default=3,
-                      validate=validate_is_number),
-        inquirer.Text('cpus', 
-                      message='Enter the number of cpus per node',
-                      default=2,
-                      validate=validate_is_number),
-        inquirer.Text('memory', 
-                      message='Enter the nodes memory in MB',
-                      default=1024,
-                      validate=validate_is_number),
-        inquirer.Text('disk_size', 
-                      message='Enter the nodes disk size in bytes',
-                      default=68719476736,
-                      validate=validate_is_number),
-    ]
-    terraform_answers["node"] = inquirer.prompt(node_questions, theme=theme)
-    print("")
-
-
+    """
+            "source_image": "",
+            "volume_name": "",
+            "private_ip": ""
+    """
     if terraform_answers["common"]["shared_storage_type"] == "iscsi":
-        panel_show("iSCSI questions")
+        #panel_show("You said you wanted a iSCSI server")
         iscsi_questions = [
-            inquirer.Text('cpus', 
-                          message='Enter the number of cpus for iSCSI node',
-                          default=2,
+            inquirer.Text("cpus", 
+                          message="Enter the number of cpus for iSCSI node",
+                          default=defaults["iscsi"]["cpus"],
                           validate=validate_is_number),
-            inquirer.Text('memory', 
-                          message='Enter the iSCSI node memory in MB',
-                          default=1024,
+            inquirer.Text("memory", 
+                          message="Enter the iSCSI node memory in MB",
+                          default=defaults["iscsi"]["memory"],
                           validate=validate_is_number),
-            inquirer.Text('disk_size',
-                          message='Enter the iSCSI node disk size in bytes',
-                          default=10737418240,
+            inquirer.Text("disk_size",
+                          message="Enter the iSCSI node disk size in bytes",
+                          default=defaults["iscsi"]["disk_size"],
                           validate=validate_is_number),
         ]
         terraform_answers["iscsi"] = inquirer.prompt(iscsi_questions, theme=theme)
@@ -181,43 +156,76 @@ def libvirt_terraform(theme):
     else:
         terraform_answers["iscsi"] = {}
 
+    """
+            "source_image": "",
+            "volume_name": "",
+            "private_ips": []
+    """
 
-    monitor_enabled = inquirer.confirm("Do you want to use a monitor node?", default = False)
-    if monitor_enabled:
-        panel_show("Monitor questions")
-        monitor_questions = [
-            inquirer.Text('cpus', 
-                          message='Enter the number of cpus for monitor node',
-                          default=2,
-                          validate=validate_is_number),
-            inquirer.Text('memory', 
-                          message='Enter the monitor node memory in MB',
-                          default=1024,
-                          validate=validate_is_number),
-        ]
-        terraform_answers["monitor"] = inquirer.prompt(monitor_questions, theme=theme)
-        terraform_answers["monitor"]["enabled"] = True
-        print("")
-    else:
-        terraform_answers["monitor"] = {}
+    panel_show("Let's talk about the nodes of your cluster")
+    node_questions = [
+        inquirer.Text("count", 
+                      message='Enter the number of nodes',
+                      default=defaults["node"]["count"],
+                      validate=validate_is_number),
+        inquirer.Text("cpus", 
+                      message="Enter the number of cpus per node",
+                      default=defaults["node"]["cpus"],
+                      validate=validate_is_number),
+        inquirer.Text('memory', 
+                      message='Enter the nodes memory in MB',
+                      default=defaults["node"]["memory"],
+                      validate=validate_is_number),
+        inquirer.Text("disk_size", 
+                      message="Enter the nodes disk size in bytes",
+                      default=defaults["node"]["disk_size"],
+                      validate=validate_is_number),
+    ]
+    terraform_answers["node"] = inquirer.prompt(node_questions, theme=theme)
+    print("")
+
+
+    """
+            "source_image": "",
+            "volume_name": "",
+            "private_ip": ""
+    """
+    panel_show("Monitor questions")
+    monitor_questions = [
+        inquirer.Confirm("enabled", 
+                        message="Do you want to use a monitor node?",
+                        default=defaults["monitor"]["enabled"]),
+        inquirer.Text("cpus", 
+                        message="Enter the number of cpus for monitor node",
+                        default=defaults["monitor"]["cpus"],
+                        validate=validate_is_number,
+                        ignore=lambda answers: answers["enabled"] == False),
+        inquirer.Text("memory", 
+                        message="Enter the monitor node memory in MB",
+                        default=defaults["monitor"]["memory"],
+                        validate=validate_is_number,
+                        ignore=lambda answers: answers["enabled"] == False),
+    ]
+    terraform_answers["monitor"] = inquirer.prompt(monitor_questions, theme=theme)
+    print("")
 
     return terraform_answers
 
 
-def salt(terraform_answers, theme):
+def salt(terraform_answers, defaults, theme):
     salt_answers = {}
 
     panel_show("PROVISION")
     
     panel_show("Common questions about provisioning")
     common_questions = [
-        inquirer.Text('reg_email',
-                      message='Enter your registration mail'),
-        inquirer.Text('reg_code', 
+        inquirer.Text("reg_email",
+                      message="Enter your registration mail"),
+        inquirer.Text("reg_code", 
                       message='Enter your registration code'),
-        inquirer.Text('ha_repo',
+        inquirer.Text("ha_repo",
                       message='Enter HA repository URL',
-                      default="http://download.opensuse.org/repositories/network:ha-clustering:sap-deployments:devel"),
+                      default=defaults["common"]["ha_repo"]),
     ]
     salt_answers["common"] = inquirer.prompt(common_questions, theme=theme)
     print("")
@@ -225,33 +233,35 @@ def salt(terraform_answers, theme):
 
     panel_show("Node provisioning questions")
     node_questions = [
-        inquirer.Text('network_domain', 
-                      message='Enter the network domain for nodes',
-                      default="tf.local"),
+        inquirer.Text("network_domain", 
+                      message="Enter the network domain for nodes",
+                      default=defaults["node"]["network_domain"]),
     ]
     salt_answers["node"] = inquirer.prompt(node_questions, theme=theme)
     print("")
 
 
+    """
     if terraform_answers["common"]["shared_storage_type"] == "iscsi":
         panel_show("iSCSI provisioning questions")
         iscsi_questions = [
-            inquirer.Text('network_domain', 
-                          message='Enter the network domain for iSCSI node',
-                          default="tf.local"),
+            inquirer.Text("network_domain", 
+                          message="Enter the network domain for iSCSI node",
+                          default=defaults["iscsi"]["network_domain"]),
         ]
         salt_answers["iscsi"] = inquirer.prompt(iscsi_questions, theme=theme)
         print("")
     else:
         salt_answers["iscsi"] = {}
+    """
 
 
     if "enabled" in terraform_answers["monitor"] and terraform_answers["monitor"]["enabled"]:
         panel_show("Monitor provisioning questions")
         monitor_questions = [
-            inquirer.Text('network_domain', 
-                          message='Enter the network domain for monitor node',
-                          default="tf.local"),
+            inquirer.Text("network_domain", 
+                          message="Enter the network domain for monitor node",
+                          default=defaults["monitor"]["network_domain"]),
         ]
         salt_answers["monitor"] = inquirer.prompt(monitor_questions, theme=theme)
         print("")
@@ -268,16 +278,27 @@ if __name__ == "__main__":
     """
     panel_show("PACEMAKER\n        Deploy", "drpepper")
 
-    theme = theme_load("wizard.theme.json")
+    # theme
+    with open(f"{utils.path_config()}/wizard.theme.json", "r") as f:
+        theme = inquirer.themes.load_theme_from_json(f.read())
+
+    # default values
+    with open(f"{utils.path_config()}/defaults.json", "r") as f:
+        defaults = json.load(f)
 
     answers = intro(theme)
-    answers["terraform"] = libvirt_terraform(theme)
-    answers["salt"] = salt(answers["terraform"], theme)
+    answers["terraform"] = libvirt_terraform(defaults["terraform"], theme)
+    answers["salt"] = salt(answers["terraform"], defaults["salt"], theme)
     
-    print(f"{json.dumps(answers, indent = 4)}")
+    #print(f"{json.dumps(answers, indent = 4)}")
 
+    filename = f"{answers['name']}.json"
+    with open(filename, "w") as f:
+        json.dump(answers, f, indent = 4)
 
-
+    print("")
+    panel_show(f"All set! Run:")
+    panel_show(f"    ./deploy.py create {filename}")
 
 """Colorize text.
     Available text colors:

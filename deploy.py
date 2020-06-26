@@ -196,7 +196,7 @@ def infrastructure(name):
     logging.info("[X] Copying provision files...")
 
     # render grains files for nodes using enviroment
-    for index in range(0, env["terraform"]["node"]["count"]):
+    for index in range(0, int(env["terraform"]["node"]["count"])):
         utils.template_render(utils.path_templates(env["provider"]), "node.grains.j2", path, index=index, **env)
 
         res = tasks.run(f"cd {path} && mv node.grains node-0{index + 1}.grains")
@@ -249,7 +249,7 @@ def upload(name):
     uploads = []
     
     # copy salt directory and grains files to nodes
-    for index in range(0, env["terraform"]["node"]["count"]):
+    for index in range(0, int(env["terraform"]["node"]["count"])):
         host = env["terraform"]["node"]["public_ips"][index]
         uploads.append( (host, "./salt", "/tmp/salt") )
         uploads.append( (host, f"{path}/node-0{index + 1}.grains", "/tmp/grains") )
@@ -325,7 +325,7 @@ def provision_task(host, phases):
     if tasks.has_succeeded(res):
         logging.info(f"[{host}] <- provisioning success")
     else:
-        logging.error(f"[{host}] <- provisioning FAILED, continue provisioning with => deploy.py provision --host={host} --from={phase}")
+        logging.error(f"[{host}] <- provisioning FAILED, continue provisioning with => deploy.py provision {host} --from={phase}")
 
     return res
 
@@ -377,7 +377,7 @@ def provision(name):
     hosts = []
     
     # nodes
-    for index in range(0, env["terraform"]["node"]["count"]):
+    for index in range(0, int(env["terraform"]["node"]["count"])):
         hosts.append(env["terraform"]["node"]["public_ips"][index])
 
     # iscsi if present
@@ -410,7 +410,7 @@ def provision(name):
 
     logging.info(f"Provisioning init node")
     res = provision_task(hosts[0], phases)
-    if tasks.has_succeeded(res):
+    if tasks.has_succeeded(res) and provision_join_tasks:
         logging.info(f"Provisioning join nodes")
 
         for task in provision_join_tasks:
