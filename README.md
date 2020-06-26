@@ -3,12 +3,12 @@
 ___
 # Prerequisites
 
-- For deploying only
-zypper install terraform sshpass python3-Jinja2 python3-docopt
+- For deploying only:
+ - zypper install terraform sshpass python3-Jinja2 python3-docopt
 
-- For wizard
-pip install inquirer
-zypper install python3-pyfiglet python3-colorama python3-termcolor
+- For wizard:
+ - pip install inquirer
+ - zypper install python3-pyfiglet python3-colorama python3-termcolor
 
 ___
 # Use
