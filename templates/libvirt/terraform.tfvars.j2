@@ -8,7 +8,8 @@ volume_name = "{{ terraform.common.volume_name }}"
 storage_pool = "{{ terraform.common.storage_pool }}"
 network_name = "{{ terraform.common.network_name }}"
 ip_range = "{{ terraform.common.ip_range }}"
-isolated_network_bridge = "{{ terraform.common.isolated_network_bridge }}"
+#isolated_network_bridge = "{{ terraform.common.isolated_network_bridge }}"
+isolated_network_bridge = "{{ name }}-br"
 shared_storage_type = "{{ terraform.common.shared_storage_type }}"
 sbd_disk_size = {{ terraform.common.sbd_disk_size }}
 
