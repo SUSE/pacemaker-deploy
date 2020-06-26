@@ -16,7 +16,8 @@ ___
 ___
 # Architecture
  
-
+ else "qemu:///system"
+ 
 ___
 # TODO
  - qnetdevice infrastructure and provision

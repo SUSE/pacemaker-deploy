@@ -10,11 +10,17 @@ import tasks
 #
 # Paths related
 #
-def path_config(provider_name):
+def path_config():
     """
-    Returns configuration files path for a given provider
+    Returns global configuration files path
     """
-    return f"./config/{provider_name}"
+    return f"./config"
+
+def path_templates(provider_name):
+    """
+    Returns template files path for a given provider
+    """
+    return f"./templates/{provider_name}"
 
 
 def path_infrastructure(provider_name):
@@ -57,7 +63,7 @@ def deployment_verify(deployment_name):
     try:
         env = environment_load(deployment_name)
     except Exception as e:
-        return (tasks.failure(f"Inexistant environment file under deployment {deployment_name}"), "", {})
+        return (tasks.failure(f"Inexistant environment file under deployment {deployment_name} = {e.args}"), "", {})
     
     return (tasks.success(), path, env)
 
@@ -73,7 +79,7 @@ def environment_name(deployment_name):
 
 
 def environment_save(deployment_name, **env):
-    with open(environment_name(deployment_name), "w+") as f:
+    with open(environment_name(deployment_name), "w") as f:
         json.dump(env, f, indent = 4)
 
 
@@ -98,13 +104,28 @@ def template_render(src_dir, template_name, dst_dir, **env):
     
     output_path = f"{dst_dir}/{output_name}"
 
-    with open(output_path, "w+") as output_file:
+    with open(output_path, "w") as output_file:
         output_file.write( template.render(**env) )
 
 
 #
 # Others
 #
+def merge(default, update):
+    if not isinstance(default, dict) or not isinstance(update, dict):
+        raise TypeError('Parameters are not dictionarys')
+
+    default_copy = default.copy()
+    
+    for key in update:
+        if isinstance(update[key], dict) and isinstance(default.get(key), dict):
+            default_copy[key] = merge(default[key], update[key])
+        else:
+            default_copy[key] = update[key]
+
+    return default_copy
+
+
 def get_log_level(loglevel, default):
 
     if loglevel is None:

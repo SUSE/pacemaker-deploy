@@ -2,9 +2,9 @@ provider: libvirt
 
 role: node
 
-name_prefix: "{{ terraform.workspace }}-node"
+name_prefix: "{{ name }}-node"
 
-hostname: "{{ terraform.workspace }}-node0{{ index + 1 }}"
+hostname: "{{ name }}-node0{{ index + 1 }}"
 
 network_domain: "{{ salt.node.network_domain }}"
 
@@ -20,7 +20,7 @@ sbd_disk_index: 1
 
 iscsi_ip: "{{ terraform.iscsi.private_ip }}"
 
-monitor_enabled: {{ 'true' if terraform.monitor.enabled else 'false'}}
+monitor_enabled: {{ jsonify(terraform.monitor.enabled) }}
 
 reg_email: "{{ salt.common.reg_email }}"
 

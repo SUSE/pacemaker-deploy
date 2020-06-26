@@ -2,9 +2,9 @@ provider: libvirt
 
 role: monitor
 
-name_prefix: "{{ terraform.workspace }}-monitor"
+name_prefix: "{{ name }}-monitor"
 
-hostname: "{{ terraform.workspace }}-monitor"
+hostname: "{{ name }}-monitor"
 
 network_domain: "{{ salt.monitor.network_domain }}"
 

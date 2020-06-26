@@ -24,7 +24,7 @@ def panel_show(message, font = ""):
 
 
 def theme_load(theme_file):
-    with open("wizard.theme.json", "r") as f:
+    with open(f"{utils.path_config()}/wizard.theme.json", "r") as f:
         theme_data = f.read()
     return inquirer.themes.load_theme_from_json(theme_data)
 
@@ -274,12 +274,7 @@ if __name__ == "__main__":
     answers["terraform"] = libvirt_terraform(theme)
     answers["salt"] = salt(answers["terraform"], theme)
     
-    print(f"[X] Environment:\n{json.dumps(answers, indent = 4)}\n")
-
-        #    inquirer.Password('password', message='Please enter your password'),
-        #    inquirer.Text('repo', message='Please enter the repo name', default='default'),
-        #     inquirer.Text('organization', message='If this is a repo from a organization please enter the organization name, if not just leave this blank'),
-        #    inquirer.Confirm('correct',  message='This will delete all your current labels and create a new ones. Continue?', default=False),
+    print(f"{json.dumps(answers, indent = 4)}")
 
 
 

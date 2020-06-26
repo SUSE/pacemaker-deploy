@@ -1,5 +1,5 @@
 variable "name" {
-    description = "hostname, without the domain part"
+    description = "Hostname, without the domain part"
     type        = string
 }
 
@@ -14,12 +14,12 @@ variable "volume_name" {
 }
 
 variable "storage_pool" {
-    description = "libvirt storage pool name for VM disks"
+    description = "Libvirt storage pool name for VM disks"
     type        = string
 }
 
 variable "monitor_enabled" {
-    description = "whether or not to enable this module"
+    description = "Whether or not to enable this module"
     type        = bool
 }
 
@@ -34,17 +34,17 @@ variable "memory" {
 }
 
 variable "mac" {
-    description = "a MAC address in the form AA:BB:CC:11:22:22"
+    description = "MAC address in the form AA:BB:CC:11:22:22"
     type        = string
 }
 
 variable "bridge" {
-    description = "a bridge device name available on the libvirt host, leave default for NAT"
+    description = "Bridge device name available on the libvirt host, leave default for NAT"
     type        = string
 }
 
 variable "nat_network_name" {
-    description = "libvirt NAT network name for VMs, use empty string for bridged networking"
+    description = "Libvirt NAT network name for VMs, use empty string for bridged networking"
     type        = string
 }
 
@@ -59,7 +59,7 @@ variable "isolated_network_name" {
 }
 
 variable "monitor_private_ip" {
-    description = "monitoring server address"
+    description = "Monitor server address"
     type        = string
 }
 

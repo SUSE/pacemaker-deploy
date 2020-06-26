@@ -12,19 +12,31 @@ import terraform
 import ssh
 import utils
 
+
 def create(filename):
     """
     Creates a cluster based on the specification file.
     """
     #
-    # Load environment from file
+    # Load environment from files
     #
+
+    # user provided data
     try:
         with open(filename, "r") as f:
-            env = json.load(f)
+            user_data = json.load(f)
     except Exception as e:
         logging.exception(e)
         return tasks.failure(f"Exception: {e.args}")
+
+    # default values
+    with open(f"{utils.path_config()}/defaults.json", "r") as f:
+        defaults = json.load(f)
+
+    # merge in environment
+    env = utils.merge(defaults, user_data)
+
+    # TODO: check existance of name and provider
 
     name = env["name"]
     
@@ -35,7 +47,7 @@ def create(filename):
     if tasks.has_failed(res):
         logging.critical(f"Phase 'prepare' failed")
         return res
-    
+
     res = infrastructure(name)
     if tasks.has_failed(res):
         logging.critical(f"Phase 'infrastructure' failed")
@@ -86,7 +98,7 @@ def prepare(**env):
     logging.debug(f"Copied tree [{utils.path_infrastructure(env['provider'])}] -> [{path}]")
 
     # render terraform input variables from environment
-    utils.template_render(utils.path_config(env["provider"]), "terraform.tfvars.j2", path, **env)
+    utils.template_render(utils.path_templates(env["provider"]), "terraform.tfvars.j2", path, **env)
 
     with open(f"{path}/terraform.tfvars", "r") as f:
         logging.debug(f"Rendered terraform.tfvars =\n{f.read()}")
@@ -124,15 +136,13 @@ def infrastructure(name):
     else:
         logging.debug(tasks.get_stdout(res))
 
-    # switch to workspace if present
-    if env["terraform"]["workspace"]: 
-        res = terraform.workspace(path, env["terraform"]["workspace"])
-        if tasks.has_failed(res):
-            logging.error(tasks.get_stderr(res))
-            return res
-        else:
-            logging.debug(tasks.get_stdout(res))
-
+    # switch to workspace
+    res = terraform.workspace(path, env["name"])
+    if tasks.has_failed(res):
+        logging.error(tasks.get_stderr(res))
+        return res
+    else:
+        logging.debug(tasks.get_stdout(res))
 
     # apply
     res = terraform.apply(path)
@@ -180,7 +190,7 @@ def infrastructure(name):
 
     # render grains files for nodes using enviroment
     for index in range(0, env["terraform"]["node"]["count"]):
-        utils.template_render(utils.path_config(env["provider"]), "node.grains.j2", path, index=index, **env)
+        utils.template_render(utils.path_templates(env["provider"]), "node.grains.j2", path, index=index, **env)
 
         res = tasks.run(f"cd {path} && mv node.grains node-0{index + 1}.grains")
         if tasks.has_failed(res):
@@ -192,13 +202,13 @@ def infrastructure(name):
 
     # if there is a iscsi device, render grains file for iscsi using enviroment
     if "public_ip" in env["terraform"]["iscsi"]:
-        utils.template_render(utils.path_config(env["provider"]), "iscsi.grains.j2", path, **env)
+        utils.template_render(utils.path_templates(env["provider"]), "iscsi.grains.j2", path, **env)
         with open(f"{path}/iscsi.grains", "r") as f:
             logging.debug(f"Rendered iscsi.grains =\n{f.read()}")
 
     # if there is a monitor device, render grains file for monitor using enviroment
     if "public_ip" in env["terraform"]["monitor"]:
-        utils.template_render(utils.path_config(env["provider"]), "monitor.grains.j2", path, **env)
+        utils.template_render(utils.path_templates(env["provider"]), "monitor.grains.j2", path, **env)
         with open(f"{path}/monitor.grains", "r") as f:
             logging.debug(f"Rendered monitor.grains =\n{f.read()}")
     
@@ -482,7 +492,7 @@ Examples:
         
         if arguments["--logfile"]:
             logfile = arguments["--logfile"]
-            handlers.append(logging.FileHandler(logfile))
+            handlers.append(logging.FileHandler(logfile,  mode="w"))
 
         loglevel = utils.get_log_level(arguments["--loglevel"], logging.DEBUG)
         logging.basicConfig(level=loglevel,
