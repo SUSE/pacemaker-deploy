@@ -1,6 +1,6 @@
 resource "libvirt_volume" "node_image_disk" {
     count            = var.node_count
-    name             = "${terraform.workspace}-${var.name}-${count.index + 1}-main-disk"
+    name             = "${terraform.workspace}-${var.name}0${count.index + 1}-main-disk"
     source           = var.source_image
     base_volume_name = var.volume_name
     pool             = var.storage_pool
@@ -8,7 +8,7 @@ resource "libvirt_volume" "node_image_disk" {
 
 /*
 resource "libvirt_volume" "node_data_disk" {
-    name  = "${terraform.workspace}-${var.name}-${count.index + 1}-node-disk"
+    name  = "${terraform.workspace}-${var.name}0${count.index + 1}-node-disk"
     pool  = var.storage_pool
     count = var.node_count
     size  = var.disk_size
@@ -16,7 +16,7 @@ resource "libvirt_volume" "node_data_disk" {
 */
 
 resource "libvirt_domain" "node_domain" {
-    name       = "${terraform.workspace}-${var.name}-${count.index + 1}"
+    name       = "${terraform.workspace}-${var.name}0${count.index + 1}"
     memory     = var.memory
     vcpu       = var.cpus
     count      = var.node_count
@@ -77,7 +77,7 @@ resource "libvirt_domain" "node_domain" {
         wait_for_lease = false
         network_name   = var.isolated_network_name
         network_id     = var.isolated_network_id
-        hostname       = "${var.name}0${count.index + 1}"
+        hostname       = "${terraform.workspace}-${var.name}0${count.index + 1}"
         addresses      = [element(var.node_private_ips, count.index)]
     }
 

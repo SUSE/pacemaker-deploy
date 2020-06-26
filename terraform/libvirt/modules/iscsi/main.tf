@@ -1,6 +1,6 @@
 resource "libvirt_volume" "iscsi_image_disk" {
     count            = var.iscsi_enabled == true ? 1 : 0
-    name             = format("%s-iscsi-disk", terraform.workspace)
+    name             = "${terraform.workspace}-iscsi-disk"    
     source           = var.source_image
     base_volume_name = var.volume_name
     pool             = var.storage_pool
@@ -8,13 +8,13 @@ resource "libvirt_volume" "iscsi_image_disk" {
 
 resource "libvirt_volume" "iscsi_dev_disk" {
     count = var.iscsi_enabled == true ? 1 : 0
-    name  = format("%s-iscsi-dev", terraform.workspace)
+    name  = "${terraform.workspace}-iscsi-dev"        
     pool  = var.storage_pool
     size  = var.disk_size
 }
 
 resource "libvirt_domain" "iscsi_domain" {
-    name       = format("%s-iscsi", terraform.workspace)
+    name       = "${terraform.workspace}-iscsi"        
     memory     = var.memory
     vcpu       = var.cpus
     count      = var.iscsi_enabled == true ? 1 : 0

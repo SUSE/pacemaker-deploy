@@ -21,7 +21,7 @@ resource "libvirt_volume" "base_image" {
 #
 resource "libvirt_network" "isolated_network" {
     count     = var.network_name == "" ? 1 : 0
-    name      = "${terraform.workspace}-isolated"
+    name      = "${terraform.workspace}-network"
     bridge    = var.isolated_network_bridge
     mode      = "none"
     addresses = [var.ip_range]
