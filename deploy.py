@@ -95,13 +95,14 @@ def prepare(**env):
     # terraform files
     shutil.copytree(utils.path_infrastructure(env["provider"]), path)
 
-    logging.debug(f"Copied tree [{utils.path_infrastructure(env['provider'])}] -> [{path}]")
+    logging.info(f"Copied tree [{utils.path_infrastructure(env['provider'])}] -> [{path}]")
 
     # render terraform input variables from environment
     utils.template_render(utils.path_templates(env["provider"]), "terraform.tfvars.j2", path, **env)
 
+    logging.info("Rendered terraform.tfvars")
     with open(f"{path}/terraform.tfvars", "r") as f:
-        logging.debug(f"Rendered terraform.tfvars =\n{f.read()}")
+        logging.debug(f"{f.read()}")
 
     # save the environment
     utils.environment_save(name, **env)
@@ -129,6 +130,7 @@ def infrastructure(name):
     logging.info("[X] Creating infrastructure...")
 
     # init
+    logging.info("Initializing Terraform")
     res = terraform.init(path)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
@@ -137,6 +139,7 @@ def infrastructure(name):
         logging.debug(tasks.get_stdout(res))
 
     # switch to workspace
+    logging.info(f"Switching to workspace {env['name']}")
     res = terraform.workspace(path, env["name"])
     if tasks.has_failed(res):
         logging.error(tasks.get_stderr(res))
@@ -145,6 +148,7 @@ def infrastructure(name):
         logging.debug(tasks.get_stdout(res))
 
     # apply
+    logging.info(f"Executing plan")
     res = terraform.apply(path)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
@@ -160,6 +164,7 @@ def infrastructure(name):
     logging.info("[X] Adding terraform outputs to environment...")
 
     # capture output
+    logging.info(f"Capturing output")
     res = terraform.output(path)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
@@ -171,6 +176,7 @@ def infrastructure(name):
     terraform_json = json.loads(tasks.get_stdout(res))
 
     # translate "a_b = v" outputs to env[terraform][a][b] = v
+    logging.info(f"Translating output")
     for _, (k, v) in enumerate(terraform_json.items()):
         if v["value"]:
             key, _, subkey = k.partition("_")
@@ -178,8 +184,9 @@ def infrastructure(name):
 
     # save enriched enviroment data        
     utils.environment_save(name, **env)
-
-    logging.debug(f"Updated environment =\n{json.dumps(env, indent = 4)}\n")
+    
+    logging.info(f"Updated environment")
+    logging.debug(f"{json.dumps(env, indent = 4)}\n")
 
     logging.info("OK\n")
     
@@ -197,20 +204,25 @@ def infrastructure(name):
             logging.critical(tasks.get_stderr(res))
             return res
 
+        logging.info(f"Rendered node-0{index + 1}.grains")
         with open(f"{path}/node-0{index + 1}.grains", "r") as f:
-            logging.debug(f"Rendered node-0{index + 1}.grains =\n{f.read()}")
+            logging.debug(f"{f.read()}")
 
     # if there is a iscsi device, render grains file for iscsi using enviroment
     if "public_ip" in env["terraform"]["iscsi"]:
         utils.template_render(utils.path_templates(env["provider"]), "iscsi.grains.j2", path, **env)
+
+        logging.info("Rendered iscsi.grains")
         with open(f"{path}/iscsi.grains", "r") as f:
-            logging.debug(f"Rendered iscsi.grains =\n{f.read()}")
+            logging.debug(f"{f.read()}")
 
     # if there is a monitor device, render grains file for monitor using enviroment
     if "public_ip" in env["terraform"]["monitor"]:
         utils.template_render(utils.path_templates(env["provider"]), "monitor.grains.j2", path, **env)
+
+        logging.info("Rendered monitor.grains")
         with open(f"{path}/monitor.grains", "r") as f:
-            logging.debug(f"Rendered monitor.grains =\n{f.read()}")
+            logging.debug(f"{f.read()}")
     
     logging.info("OK\n")
 
@@ -254,7 +266,7 @@ def upload(name):
         uploads.append( (host, "./salt", "/tmp/salt") )
         uploads.append( (host, f"{path}/monitor.grains", "/tmp/grains") )
 
-    logging.debug(f"Uploads = {uploads}")
+    logging.info(f"{uploads}")
 
     logging.info("OK\n")
     
@@ -268,7 +280,8 @@ def upload(name):
         if tasks.has_failed(res):
             logging.critical(f"Cannot copy [{origin}] -> [{host}:{destiny}]")
             logging.critical(tasks.get_stderr(res))
-        logging.debug(f"Uploaded [{origin}] -> [{host}:{destiny}]")
+    
+        logging.info(f"Uploaded [{origin}] -> [{host}:{destiny}]")
     
     logging.info("OK\n")
 
@@ -307,7 +320,7 @@ def provision_task(host, phases):
     # Log global result
     #
     if tasks.has_succeeded(res):
-        logging.debug(f"[{host}] <- provisioning success")
+        logging.info(f"[{host}] <- provisioning success")
     else:
         logging.error(f"[{host}] <- provisioning for [{phase}] phase FAILED =\n{tasks.get_stderr(res)}")
 
@@ -326,19 +339,19 @@ def clock_task(subject):
     global clock_task_mutex
     global clock_task_active
     
-    logging.debug(f"[{subject}] STARTING")
+    logging.info(f"[{subject}] STARTING")
 
     elapsed = 0
     while(True):
         with clock_task_mutex:
             if clock_task_active == False:
-                logging.debug(f"[{subject}] FINISHED in {elapsed} seconds")
+                logging.info(f"[{subject}] FINISHED in {elapsed} seconds")
                 return
         
         time.sleep(1)
         elapsed = elapsed + 1
-        if elapsed % 15 == 0:
-            logging.debug(f"[{subject}] {elapsed} seconds elapsed")
+        if elapsed % 20 == 0:
+            logging.info(f"[{subject}] {elapsed} seconds elapsed")
 
 
 def provision(name):
@@ -372,7 +385,7 @@ def provision(name):
     if "public_ip" in env["terraform"]["monitor"]:
         hosts.append(env["terraform"]["monitor"]["public_ip"])
 
-    logging.debug(f"Host to provision = {hosts}")
+    logging.info(f"Host to provision = {hosts}")
 
     logging.info("OK\n")
     
@@ -472,7 +485,7 @@ Options:
     -v, --version                        Show version.
     -q, --quiet                          Do not log to stdout
     -f LOG_FILE, --logfile=LOG_FILE      Send logging to file
-    -l LOG_LEVEL, --loglevel=LOG_LEVEL   Logging level (one of DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: DEBUG]
+    -l LOG_LEVEL, --loglevel=LOG_LEVEL   Logging level (one of DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: INFO]
     --only=PROVISION_PHASE               Executes only the provision phase specified (one of INSTALL, CONFIG or START)
     --from=PROVISION_PHASE               Executes all provision phases starting from specified
 
@@ -494,7 +507,7 @@ Examples:
             logfile = arguments["--logfile"]
             handlers.append(logging.FileHandler(logfile,  mode="w"))
 
-        loglevel = utils.get_log_level(arguments["--loglevel"], logging.DEBUG)
+        loglevel = utils.get_log_level(arguments["--loglevel"], logging.INFO)
         logging.basicConfig(level=loglevel,
                     format="[%(asctime)s] %(levelname)s - %(module)s[%(lineno)d] - %(message)s",
                     datefmt="%m/%d/%Y %I:%M:%S %p",
