@@ -1,0 +1,20 @@
+{
+    "Question": {
+        "mark_color": "yellow",
+        "brackets_color": "bright_green",
+        "default_color": "yellow"
+    },
+    "Checkbox": {
+        "selection_color": "bold_black_on_bright_green",
+        "selection_icon": "❯",
+        "selected_icon": "◉",
+        "selected_color": "green",
+        "unselected_color": "normal",
+        "unselected_icon": "◯"
+    },
+    "List": {
+        "selection_color": "bold_green",
+        "selection_cursor": "->",
+        "unselected_color": "normal"
+    }
+}
