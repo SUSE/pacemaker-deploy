@@ -221,7 +221,7 @@ def salt(terraform_answers, defaults, theme):
     common_questions = [
         inquirer.Text("reg_email",
                       message="Enter your registration mail"),
-        inquirer.Text("reg_code", 
+        inquirer.Password("reg_code", 
                       message='Enter your registration code'),
         inquirer.Text("ha_repo",
                       message='Enter HA repository URL',
