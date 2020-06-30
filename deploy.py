@@ -6,6 +6,7 @@ import threading
 import logging
 import time
 import json
+import yaml
 
 import tasks
 import terraform
@@ -24,14 +25,14 @@ def create(filename):
     # user provided data
     try:
         with open(filename, "r") as f:
-            user_data = json.load(f)
+            user_data = yaml.load(f, Loader=yaml.FullLoader)
     except Exception as e:
         logging.exception(e)
         return tasks.failure(f"Exception: {e.args}")
 
     # default values
-    with open(f"{utils.path_config()}/defaults.json", "r") as f:
-        defaults = json.load(f)
+    with open(f"{utils.path_config()}/defaults.yaml", "r") as f:
+        defaults = yaml.load(f, Loader=yaml.FullLoader)
 
     # merge in environment
     env = utils.merge(defaults, user_data)

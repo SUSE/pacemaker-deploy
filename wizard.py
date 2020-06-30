@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import ipaddress
 import json
+import yaml
 
 from pyfiglet import figlet_format
 from termcolor import colored
@@ -283,8 +284,8 @@ if __name__ == "__main__":
         theme = inquirer.themes.load_theme_from_json(f.read())
 
     # default values
-    with open(f"{utils.path_config()}/defaults.json", "r") as f:
-        defaults = json.load(f)
+    with open(f"{utils.path_config()}/defaults.yaml", "r") as f:
+        defaults = yaml.load(f, Loader=yaml.FullLoader)
 
     answers = intro(theme)
     answers["terraform"] = libvirt_terraform(defaults["terraform"], theme)
@@ -292,9 +293,9 @@ if __name__ == "__main__":
     
     #print(f"{json.dumps(answers, indent = 4)}")
 
-    filename = f"{answers['name']}.json"
+    filename = f"{answers['name']}.yaml"
     with open(filename, "w") as f:
-        json.dump(answers, f, indent = 4)
+        yaml.dump(answers, f, indent = 4)
 
     print("")
     panel_show(f"All set! Run:")

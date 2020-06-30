@@ -1,0 +1,54 @@
+name: ""
+provider: ""
+
+terraform:
+    common:
+        qemu_uri: qemu:///system
+        source_image: ""
+        volume_name: SLES4SAP-15_SP1
+        storage_pool: terraform
+        network_name: ""
+        ip_range: 192.168.145.0/24
+        isolated_network_bridge: virbr128
+        shared_storage_type: shared-disk
+        sbd_disk_size: 104857600
+
+    node:
+        source_image: ""
+        volume_name: ""
+        count: 2
+        cpus: 2
+        memory: 1024
+        disk_size: 68719476736
+        private_ips: []
+
+    iscsi:
+        source_image: ""
+        volume_name: ""
+        cpus: 2
+        memory: 1024
+        disk_size: 68719476736
+        private_ip: ""
+
+    monitor:
+        enabled: false
+        source_image: ""
+        volume_name: ""
+        cpus: 2
+        memory: 1024
+        private_ip: ""
+
+
+salt:
+    common:
+        reg_email: ""
+        reg_code: ""
+        ha_repo: http://download.opensuse.org/repositories/network:ha-clustering:sap-deployments:devel
+
+    node:
+        network_domain: local
+
+    iscsi: {}
+
+    monitor:
+        network_domain: local

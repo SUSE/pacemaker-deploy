@@ -132,4 +132,5 @@ dmypy.json
 deployed/*
 
 # Deployment files
-/*.json
+/*.yaml
+/*.yml

@@ -1,5 +1,6 @@
 import os
 import json
+import yaml
 import logging
 
 import jinja2
@@ -80,12 +81,12 @@ def environment_name(deployment_name):
 
 def environment_save(deployment_name, **env):
     with open(environment_name(deployment_name), "w") as f:
-        json.dump(env, f, indent = 4)
+        yaml.dump(env, f, indent = 4)
 
 
 def environment_load(deployment_name):
     with open(environment_name(deployment_name), "r") as f:
-        env = json.load(f)
+        env = yaml.load(f, Loader=yaml.FullLoader)
     return env
 
 
