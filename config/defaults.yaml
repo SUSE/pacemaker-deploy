@@ -1,42 +1,42 @@
-name: ""
-provider: ""
+name: ""      # name of the deployment
+provider: ""  # provider. Should be one of libvirt, azure, aws or gcp
 
 terraform:
-    common:
-        qemu_uri: qemu:///system
-        source_image: ""
-        volume_name: SLES4SAP-15_SP1
-        storage_pool: terraform
-        network_name: ""
-        ip_range: 192.168.145.0/24
-        isolated_network_bridge: virbr128
-        shared_storage_type: shared-disk
-        sbd_disk_size: 104857600
+    common:                                # generic infrastructure settings
+        qemu_uri: qemu:///system           # qemu uri for the kvm hypervisor
+        source_image: ""                   # url for the image of the OS
+        volume_name: SLES4SAP-15_SP1       # alternatively, in kvm, a volume can be specified
+        storage_pool: terraform            # the pool where the volume images are stored
+        network_name: ""                   # if there is a preexistent network we want to use, set here
+        ip_range: 192.168.145.0/24         # network, if not specified with network name
+        isolated_network_bridge: virbr128  # any unused token to specify the bridge. Can be empty but sometimes the provider fails 
+        shared_storage_type: shared-disk   # fencing mechanism, can be shared-disk or iscsi
+        sbd_disk_size: 104857600           # size of the shared-disk if used 
 
-    node:
-        source_image: ""
-        volume_name: ""
-        count: 2
-        cpus: 2
-        memory: 1024
-        disk_size: 68719476736
-        private_ips: []
+    node:                        # cluster nodes specific options
+        source_image: ""         # overrides common/source_image
+        volume_name: ""          # overrides common/volume_name
+        count: 2                 # number of cluster nodes
+        cpus: 2                  # number of cpus per node
+        memory: 1024             # memory in MiB
+        disk_size: 68719476736   # disk size in bytes
+        private_ips: []          # if those are specified, have precedence over ip_range
 
-    iscsi:
-        source_image: ""
-        volume_name: ""
-        cpus: 2
-        memory: 1024
-        disk_size: 68719476736
-        private_ip: ""
+    iscsi:                       # iscsi server specific options
+        source_image: ""         # overrides common/source_image
+        volume_name: ""          # overrides common/volumne_name
+        cpus: 2                  # number of cpus
+        memory: 1024             # memory size in MiB
+        disk_size: 68719476736   # disk size in bytes
+        private_ip: ""           # specific private ip if desired
 
-    monitor:
-        enabled: false
-        source_image: ""
-        volume_name: ""
-        cpus: 2
-        memory: 1024
-        private_ip: ""
+    monitor:                     # monitor nodespecific config
+        enabled: false           # indicates if monitor is used
+        source_image: ""         # overrides common/source_image
+        volume_name: ""          # overrides common/volume_name
+        cpus: 2                  # number of cpus
+        memory: 1024             # memory size in MiB
+        private_ip: ""           # specific private ip if desired
 
 
 salt:
