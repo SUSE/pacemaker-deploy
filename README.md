@@ -20,9 +20,13 @@ For wizard:
 
 ___
 # Use
- - deploy.py --help
- - wizard.py
+- wizard.py
+- deploy.py --help
 
+The basic use is the following:
+ - deploy.py create <deployment_file> -- This creates a cluster as specified in the deployment file.
+ - deploy.py destroy <deployment_name> -- This destroys the cluster and erases the deployment folder. The name is the one specified in the deployment file used to create the cluster and there must a folder under deployed (deployed/<name>) which holds the data of the cluster
+ 
 ___
 # Deployment file
 
