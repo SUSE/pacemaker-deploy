@@ -42,6 +42,12 @@ Under the "common" key, there are generic subkeys that applies to all nodes in t
 
 In the config/defaults.yaml file, info about all currently supported keys and educated guessed values for defaults are provided.   
 
+Not all the keys are mandatory. The deployment file provided is mixed with the defaults config file to have a value for every single key.
+This way, only keys that differ from defaults need to be specified.
+Note, however, taht there are no valid defaults for some mandatory keys such as name and provider.
+
+The defaults file is also used by the wizard to provide default values when asking the user.
+
 ___
 # Architecture
 
