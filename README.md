@@ -26,9 +26,8 @@ For wizard:
 - ```deploy.py --help```
 
 For a quickstart use:
-``` ./deploy.py create deployment.yaml.example```
+```./deploy.py create deployment.yaml.example```
 For more info check the [deployment example file](deployment.yaml.example)
-
 
 The basic use is the following:
 
