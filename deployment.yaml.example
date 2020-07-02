@@ -1,18 +1,20 @@
+## This file deploys a three-node cluster on KVM
+## Given that it will be enriched/merged with defaults found in
+## config/defaults.yaml, theres no need to specify every single key
 name: test
 provider: libvirt
 
 terraform:
     common:
-        qemu_uri: qemu+ssh://vmm@gollum-p1.qa.suse.de/system
-        volume_name: SLES4SAP-15_SP1
-        storage_pool: terraform
+        qemu_uri: qemu+ssh://user@hypervisor.machine.org/system
+        volume_name: SLES4SAP-15_SP1       # name for exisiting volume
+        storage_pool: terraform            # under this server folder for storage
         ip_range: 192.168.145.0/24         # change this
         isolated_network_bridge: virbr128  # and this
         shared_storage_type: shared-disk
-        sbd_disk_size: 104857600
 
     node:
-        count: 3
+        count: 3 # We want three nodes
 
 salt:
     common:

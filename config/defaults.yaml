@@ -3,9 +3,9 @@ provider: ""  # provider. Should be one of libvirt, azure, aws or gcp
 
 terraform:
     common:                                # generic infrastructure settings
-        qemu_uri: qemu:///system           # qemu uri for the kvm hypervisor
+        qemu_uri: qemu:///system           # qemu uri for the KVM hypervisor
         source_image: ""                   # url for the image of the OS
-        volume_name: SLES4SAP-15_SP1       # alternatively, in kvm, a volume can be specified
+        volume_name: SLES4SAP-15_SP1       # alternatively, in KVM, a volume can be specified
         storage_pool: terraform            # the pool where the volume images are stored
         network_name: ""                   # if there is a preexistent network we want to use, set here
         ip_range: 192.168.145.0/24         # network, if not specified with network name
