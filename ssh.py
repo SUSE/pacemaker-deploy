@@ -21,7 +21,7 @@ def copy_to_host(user, password, host, origin, destination):
 
 def copy_from_host(user, password, host, origin, destination):
     """
-    Copy a local directory to a remote host
+    Copy to a local directory from a remote host
     """
     command = f"sshpass -p {password} scp -o StrictHostKeyChecking=no -r {user}@{host}:{origin} {destination}"
     return tasks.run(command)
