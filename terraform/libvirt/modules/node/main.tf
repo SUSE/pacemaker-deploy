@@ -21,7 +21,7 @@ resource "libvirt_domain" "node_domain" {
     vcpu       = var.cpus
     count      = var.node_count
     qemu_agent = true
-    
+
     dynamic "disk" {
         for_each = [
             {
@@ -68,15 +68,13 @@ resource "libvirt_domain" "node_domain" {
 
     network_interface {
         wait_for_lease = true
-        network_name   = var.nat_network_name
-        bridge         = var.bridge
-        mac            = var.mac
+        network_id     = var.public_network_id
+        bridge         = var.public_bridge
     }
 
     network_interface {
         wait_for_lease = false
-        network_name   = var.isolated_network_name
-        network_id     = var.isolated_network_id
+        network_id     = var.private_network_id
         hostname       = "${terraform.workspace}-${var.name}0${count.index + 1}"
         addresses      = [element(var.node_private_ips, count.index)]
     }

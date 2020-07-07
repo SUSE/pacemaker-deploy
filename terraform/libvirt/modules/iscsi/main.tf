@@ -35,17 +35,16 @@ resource "libvirt_domain" "iscsi_domain" {
     }
 
     network_interface {
-        network_name   = var.nat_network_name
-        bridge         = var.bridge
-        mac            = var.mac
         wait_for_lease = true
+        network_id     = var.public_network_id
+        bridge         = var.public_bridge
     }
 
     network_interface {
-        network_name = var.isolated_network_name
-        network_id   = var.isolated_network_id
-        mac          = var.mac
-        addresses    = [var.iscsi_private_ip]
+        wait_for_lease = false
+        network_id     = var.private_network_id
+        hostname       = "${terraform.workspace}-iscsi"
+        addresses      = [var.iscsi_private_ip]
     }
 
     console {

@@ -38,28 +38,18 @@ variable "iscsi_dev" {
     type        = string
 }
 
-variable "mac" {
-    description = "MAC address in the form AA:BB:CC:11:22:22"
+variable "public_bridge" {
+    description = "Bridge identifier for bridged networking"
     type        = string
 }
 
-variable "bridge" {
-    description = "Bridge device name available on the libvirt host, leave default for NAT"
+variable "public_network_id" {
+    description = "Network id for NAT public network"
     type        = string
 }
 
-variable "nat_network_name" {
-    description = "Libvirt NAT network name for VMs, use empty string for bridged networking"
-    type        = string
-}
-
-variable "isolated_network_id" {
+variable "private_network_id" {
     description = "Network id, internally created by terraform"
-    type        = string
-}
-
-variable "isolated_network_name" {
-    description = "Network name to attach the isolated network interface"
     type        = string
 }
 

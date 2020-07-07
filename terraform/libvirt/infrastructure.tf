@@ -3,28 +3,43 @@ provider "libvirt" {
 }
 
 locals {
-    internal_network_name = var.network_name
-    internal_network_id   = var.network_name != "" ? "" : libvirt_network.isolated_network.0.id
-    base_volume_name      = var.source_image != "" ? libvirt_volume.base_image.0.name : var.volume_name != "" ? var.volume_name : ""
-    ip_range              = var.ip_range
+    public_network_id    = var.public_bridge == "" && var.public_ip_range != "" ? libvirt_network.public_network.0.id : ""
+    private_network_id   = libvirt_network.private_network.0.id
+    base_volume_name     = var.source_image != "" ? libvirt_volume.base_image.0.name : var.volume_name != "" ? var.volume_name : ""
 }
+
 
 resource "libvirt_volume" "base_image" {
     count  = var.source_image != "" ? 1 : 0
-    name   = "${terraform.workspace}-baseimage"
+    name   = "${terraform.workspace}-base-image"
     source = var.source_image
     pool   = var.storage_pool
 }
 
 #
-# Internal network
+# Networks
 #
-resource "libvirt_network" "isolated_network" {
-    count     = var.network_name == "" ? 1 : 0
-    name      = "${terraform.workspace}-network"
-    bridge    = var.isolated_network_bridge
+resource "libvirt_network" "public_network" {
+    count     = var.public_bridge == "" && var.public_ip_range != "" ? 1 : 0
+    name      = "${terraform.workspace}-public"
+    bridge    = "${terraform.workspace}-pb-br"
+    mode      = "nat"
+    addresses = [var.public_ip_range]
+    dhcp {
+        enabled = "true"
+    }
+    dns {
+        enabled = true
+    }
+    autostart = true
+}
+
+resource "libvirt_network" "private_network" {
+    count     = 1
+    name      = "${terraform.workspace}-private"
+    bridge    = "${terraform.workspace}-pr-br"
     mode      = "none"
-    addresses = [var.ip_range]
+    addresses = [var.private_ip_range]
     dhcp {
         enabled = "false"
     }
@@ -38,9 +53,9 @@ resource "libvirt_network" "isolated_network" {
 # Shared disks for sbd if applicable
 #
 module "sbd_disk" {
-    source            = "./modules/shared_disk"
-    name              = "sbd"
-    storage_pool      = var.storage_pool
-    shared_disk_count = var.shared_storage_type == "shared-disk" ? 1 : 0
-    shared_disk_size  = var.sbd_disk_size
+    source              = "./modules/shared_disk"
+    name                = "sbd"
+    storage_pool        = var.storage_pool
+    shared_disk_enabled = var.shared_storage_type == "shared-disk"
+    shared_disk_size    = var.sbd_disk_size
 }
