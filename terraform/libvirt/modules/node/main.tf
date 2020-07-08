@@ -1,25 +1,25 @@
 resource "libvirt_volume" "node_image_disk" {
     count            = var.node_count
-    name             = "${terraform.workspace}-${var.name}0${count.index + 1}-main-disk"
+    name             = "${terraform.workspace}-node0${count.index + 1}-main-disk"
+    pool             = var.storage_pool
     source           = var.source_image
     base_volume_name = var.volume_name
-    pool             = var.storage_pool
 }
 
 /*
 resource "libvirt_volume" "node_data_disk" {
-    name  = "${terraform.workspace}-${var.name}0${count.index + 1}-node-disk"
-    pool  = var.storage_pool
     count = var.node_count
+    name  = "${terraform.workspace}-node0${count.index + 1}-node-disk"
+    pool  = var.storage_pool
     size  = var.disk_size
 }
 */
 
 resource "libvirt_domain" "node_domain" {
-    name       = "${terraform.workspace}-${var.name}0${count.index + 1}"
-    memory     = var.memory
-    vcpu       = var.cpus
     count      = var.node_count
+    name       = "${terraform.workspace}-node0${count.index + 1}"
+    vcpu       = var.cpus
+    memory     = var.memory
     qemu_agent = true
 
     dynamic "disk" {
@@ -55,10 +55,9 @@ resource "libvirt_domain" "node_domain" {
         for_each = slice(
             [
                 {
-                    // We set null but it will never reached because the slice with 0 cut it off
-                    "volume_id" = var.shared_storage_type == "shared-disk" ? var.sbd_disk_id : "null"
+                    "volume_id" = var.sbd_disk_id
                 },
-            ], 0, var.shared_storage_type == "shared-disk" ? 1 : 0
+            ], 0, var.sbd_disk_id != "" ? 1 : 0
         )
 
         content {
@@ -75,7 +74,7 @@ resource "libvirt_domain" "node_domain" {
     network_interface {
         wait_for_lease = false
         network_id     = var.private_network_id
-        hostname       = "${terraform.workspace}-${var.name}0${count.index + 1}"
+        hostname       = "${terraform.workspace}-name0${count.index + 1}"
         addresses      = [element(var.node_private_ips, count.index)]
     }
 

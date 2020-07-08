@@ -1,8 +1,3 @@
-variable "name" {
-    description = "Hostname, without the domain part"
-    type        = string
-}
-
 variable "source_image" {
     description = "Source image used to boot the machines (qcow2 format). It's possible to specify the path to a local (relative to the machine running the terraform command) image or a remote one. Remote images have to be specified using HTTP(S) urls for now."
     type        = string
@@ -56,11 +51,6 @@ variable "private_network_id" {
 variable "node_private_ips" {
     description = "IP addresses to set to the nodes"
     type        = list(string)
-}
-
-variable "shared_storage_type" {
-    description = "Used shared storage type for fencing (sbd). Available options: iscsi, shared-disk."
-    type        = string
 }
 
 variable "sbd_disk_id" {

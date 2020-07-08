@@ -1,23 +1,23 @@
 resource "libvirt_volume" "iscsi_image_disk" {
-    count            = var.iscsi_enabled == true ? 1 : 0
+    count            = var.enabled ? 1 : 0
     name             = "${terraform.workspace}-iscsi-disk"    
+    pool             = var.storage_pool
     source           = var.source_image
     base_volume_name = var.volume_name
-    pool             = var.storage_pool
 }
 
 resource "libvirt_volume" "iscsi_dev_disk" {
-    count = var.iscsi_enabled == true ? 1 : 0
+    count = var.enabled ? 1 : 0
     name  = "${terraform.workspace}-iscsi-dev"        
     pool  = var.storage_pool
     size  = var.disk_size
 }
 
 resource "libvirt_domain" "iscsi_domain" {
+    count      = var.enabled ? 1 : 0
     name       = "${terraform.workspace}-iscsi"        
-    memory     = var.memory
     vcpu       = var.cpus
-    count      = var.iscsi_enabled == true ? 1 : 0
+    memory     = var.memory
     qemu_agent = true
 
     dynamic "disk" {

@@ -1,6 +1,6 @@
-variable "name" {
-    description = "Name of the disk"
-    type        = string
+variable "enabled" {
+    description = "Variable used to decide to create or not the shared disk device"
+    type        = bool
 }
 
 variable "storage_pool" {
@@ -8,12 +8,7 @@ variable "storage_pool" {
     type        = string
 }
 
-variable "shared_disk_enabled" {
-    description = "Variable used to decide to create or not the shared disk device"
-    type        = bool
-}
-
-variable "shared_disk_size" {
+variable "disk_size" {
     description = "Shared partition disk size"
     type        = number
 }

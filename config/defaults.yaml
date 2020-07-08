@@ -11,7 +11,6 @@ terraform:
         public_ip_range: 10.10.10.0/24      # public network range (NAT network)
         public_bridge: ""                   # if set (eg: "br0"), has precedence and allows public access
         shared_storage_type: shared-disk    # fencing mechanism, can be shared-disk or iscsi
-        sbd_disk_size: 104857600            # size of the shared-disk if used 
 
     node:                        # cluster nodes specific options
         source_image: ""         # overrides common/source_image
@@ -20,6 +19,9 @@ terraform:
         cpus: 2                  # number of cpus per node
         memory: 1024             # memory in MiB
         disk_size: 68719476736   # disk size in bytes
+    
+    sbd:
+        disk_size: 104857600     # size of the shared-disk if used 
 
     iscsi:                       # iscsi server specific options
         source_image: ""         # overrides common/source_image
@@ -28,13 +30,17 @@ terraform:
         memory: 1024             # memory size in MiB
         disk_size: 68719476736   # disk size in bytes
 
-    monitor:                     # monitor nodespecific config
+    monitor:                     # monitor specific config
         enabled: false           # indicates if monitor is used
         source_image: ""         # overrides common/source_image
         volume_name: ""          # overrides common/volume_name
         cpus: 2                  # number of cpus
         memory: 1024             # memory size in MiB
 
+    qdevice:                     # monitor specific config
+        enabled: false           # indicates if qdevice is used
+        source_image: ""         # overrides common/source_image
+        volume_name: ""          # overrides common/volume_name
 
 salt:
     common:
@@ -49,3 +55,5 @@ salt:
 
     monitor:
         network_domain: local
+
+    qdevice: {}

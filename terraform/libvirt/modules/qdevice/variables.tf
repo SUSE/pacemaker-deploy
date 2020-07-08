@@ -1,5 +1,5 @@
 variable "enabled" {
-    description = "Whether or not to enable this module"
+    description = "Use this device or not"
     type        = bool
 }
 
@@ -18,16 +18,6 @@ variable "storage_pool" {
     type        = string
 }
 
-variable "cpus" {
-    description = "Number of virtual CPUs"
-    type        = number
-}
-
-variable "memory" {
-    description = "RAM memory in MiB"
-    type        = number
-}
-
 variable "public_bridge" {
     description = "Bridge identifier for bridged networking"
     type        = string
@@ -43,8 +33,7 @@ variable "private_network_id" {
     type        = string
 }
 
-variable "monitor_private_ip" {
-    description = "Monitor server address"
+variable "qdevice_private_ip" {
+    description = "Qdevice server address"
     type        = string
 }
-

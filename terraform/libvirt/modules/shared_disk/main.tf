@@ -1,8 +1,8 @@
 resource "libvirt_volume" "shared_disk" {
-    name  = "${terraform.workspace}-${var.name}.raw"
+    count = var.enabled ? 1 : 0
+    name  = "${terraform.workspace}-sbd.raw"
     pool  = var.storage_pool
-    size  = var.shared_disk_size
-    count = var.shared_disk_enabled ? 1 : 0
+    size  = var.disk_size
 
     xml {
         xslt = file("modules/shared_disk/raw.xsl")
