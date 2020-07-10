@@ -1,7 +1,8 @@
-config:
+base:
     'role:node':
         - match: grain
         - cluster_node
+        - cluster
 
     'role:iscsi':
         - match: grain
@@ -10,3 +11,7 @@ config:
     'role:monitor':
         - match: grain
         - monitor
+
+config:
+    '*':
+        - common

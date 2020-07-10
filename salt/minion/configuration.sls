@@ -13,23 +13,18 @@ configure_file_roots:
         - name: /etc/salt/minion
         - text: |
             file_roots:
-                generic:
-                    - /srv/salt/generic
-                    - /usr/share/salt-formulas/states
                 config:
-                    - /srv/salt/config
+                    - /srv/salt
                     - /usr/share/salt-formulas/states
                 base:
-                    - /srv/salt/base
+                    - /srv/salt
                     - /usr/share/salt-formulas/states
 
             pillar_roots:
-                generic:
-                    - /srv/pillar/generic
                 config:
-                    - /srv/pillar/config
+                    - /srv/pillar
                 base:
-                    - /srv/pillar/base
+                    - /srv/pillar
 
 # Old module.run style will be deprecated after sodium release
 upgrade_module_run:

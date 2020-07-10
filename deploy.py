@@ -59,7 +59,6 @@ def create(filename):
         logging.critical(f"Phase 'upload' failed")
         return res
 
-    return res
     res = provision(name)
     if tasks.has_failed(res):
         logging.critical(f"Phase 'provision' failed")
@@ -299,8 +298,8 @@ def provision_task(host, phases):
     #
     # Execute provisioning
     #
-    for dir, option, phase in phases:
-        res = ssh.run("root", "linux", host, f"sh /{dir}/salt/provision.sh -{option} -l /var/log/provision.log")
+    for phase in phases:
+        res = ssh.run("root", "linux", host, f"sh /tmp/salt/provision.sh -{phase[0]} -l /var/log/provision.log")
         if tasks.has_failed(res):
             logging.info(f"[{host}] <- phase {phase} failed")
             break
@@ -311,14 +310,13 @@ def provision_task(host, phases):
     # Independently of success of provisioning process, cat logs
     #
     destiny = f"./{host}.tmp"
-    rcopy = ssh.copy_from_host("root", "linux", host, "/var/log/provision.log", destiny)
-    if tasks.has_succeeded(rcopy):
-        with open(destiny, "r") as f:
-            logging.debug(f"[{host}] provision logs =\n{f.read()}")
-    rcopy = ssh.copy_from_host("root", "linux", host, "/var/log/salt/minion", destiny)
-    if tasks.has_succeeded(rcopy):
-        with open(destiny, "r") as f:
-            logging.debug(f"[{host}] provision minion logs =\n{f.read()}")
+    #logs = ["/var/log/provision.log", "/var/log/salt/minion"]
+    logs = ["/var/log/provision.log"]
+    for log in logs:
+        rcopy = ssh.copy_from_host("root", "linux", host, log, destiny)
+        if tasks.has_succeeded(rcopy):
+            with open(destiny, "r") as f:
+                logging.debug(f"[{host}] {log} =\n{f.read()}")
     tasks.run(f"rm -f {destiny}")
 
     #
@@ -376,19 +374,7 @@ def provision(name):
     #
     logging.info("[X] Gathering hosts...")
 
-    hosts = []
-
-    # iscsi if present first
-    if "public_ip" in env["terraform"]["iscsi"]:
-        hosts.append(env["terraform"]["iscsi"]["public_ip"])
-
-    # nodes
-    for index in range(0, int(env["terraform"]["node"]["count"])):
-        hosts.append(env["terraform"]["node"]["public_ips"][index])
-
-    # monitor if present
-    if "public_ip" in env["terraform"]["monitor"]:
-        hosts.append(env["terraform"]["monitor"]["public_ip"])
+    hosts = utils.get_hosts_from_env(env)
 
     logging.info(f"Host to provision = {hosts}")
 
@@ -400,26 +386,23 @@ def provision(name):
     logging.info("[X] Launching provisioning...")
 
     # Prepare tasks
-    phases = [("tmp", "i", "install"), ("root", "c", "config"), ("root", "s", "start")]
+    phases = ["install", "config", "start"]
     global clock_task_mutex
     global clock_task_active
     clock_task_active = True
     clock = threading.Thread(target=clock_task, args=("provision",))
-    provision_join_tasks = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts[1:]]
+    provision_join_tasks = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts]
 
     # Execute provisioning in mostly parallel (first a node initializing the cluster, the the rest joining in parallel)
     clock.start() 
 
-    logging.info(f"Provisioning init node")
-    res = provision_task(hosts[0], phases)
-    if tasks.has_succeeded(res) and provision_join_tasks:
-        logging.info(f"Provisioning join nodes")
+    logging.info(f"Provisioning nodes")
 
-        for task in provision_join_tasks:
-            task.start()
+    for task in provision_join_tasks:
+        task.start()
 
-        for task in provision_join_tasks:
-            task.join()
+    for task in provision_join_tasks:
+        task.join()
     
     with clock_task_mutex:        
         clock_task_active = False
@@ -441,6 +424,30 @@ def destroy(name):
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
         return res
+
+    #
+    # Execute on destroy actions on nodes
+    #
+    logging.info("[X] Executing on destroy actions on nodes...")
+
+    hosts = utils.get_hosts_from_env(env)
+
+    for host in hosts:
+        ssh.run("root", "linux", host, f"sh /tmp/salt/provision.sh -d -l /var/log/destroying.log")
+
+    logging.info("OK\n")
+
+    #
+    # Eliminate entries from known_hosts
+    #
+    logging.info("[X] Eliminating server from known_hosts...")
+
+    hosts = utils.get_hosts_from_env(env)
+
+    for host in hosts:
+        tasks.run(f"ssh-keygen -R {host} -f ~/.ssh/known_hosts")
+
+    logging.info("OK\n")
 
     #
     # Destroy infrastructure
@@ -543,22 +550,20 @@ Examples:
             phase = (arguments["--from"] or arguments["--only"]).upper()
             only = arguments["--only"] != None
 
-            phases = { "INSTALL": ("tmp", "i", "install"), "CONFIG":("root", "c", "config"), "START": ("root", "s", "start") }
-            
-            if not phase in phases:
+            if not phase in ["INSTALL", "CONFIG", "START"]:
                 print(f"Used PROVISION_PHASE ({phase}) not in [INSTALL, CONFIG, START]")
                 print(f"Use deploy.py --help to show usage")
                 return
             
             if only:
-                res = provision_task(host, [ phases[phase] ])
+                res = provision_task(host, [ phase.lower() ] )
             else:
-                provision_phases = [ phases[phase] ]
+                provision_phases = [ phase.lower() ]
                 if phase == "INSTALL":
-                    provision_phases.append(phases["CONFIG"])
-                    provision_phases.append(phases["START"])
+                    provision_phases.append("config")
+                    provision_phases.append("start")
                 if phase == "CONFIG":
-                    provision_phases.append(phases["START"])
+                    provision_phases.append("start")
 
                 res = provision_task(host, provision_phases)
             return

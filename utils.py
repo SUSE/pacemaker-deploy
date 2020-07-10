@@ -141,3 +141,25 @@ def get_log_level(loglevel, default):
     }
 
     return loglevels[loglevel.upper()] if loglevel.upper() in loglevels else default
+
+
+def get_hosts_from_env(env):
+    hosts = []
+
+    # nodes
+    for index in range(0, int(env["terraform"]["node"]["count"])):
+        hosts.append(env["terraform"]["node"]["public_ips"][index])
+
+    # iscsi if present
+    if "public_ip" in env["terraform"]["iscsi"]:
+        hosts.append(env["terraform"]["iscsi"]["public_ip"])
+
+    # monitor if present
+    if "public_ip" in env["terraform"]["monitor"]:
+        hosts.append(env["terraform"]["monitor"]["public_ip"])
+
+    # qdevice if present
+    if "public_ip" in env["terraform"]["qdevice"]:
+        hosts.append(env["terraform"]["qdevice"]["public_ip"])
+
+    return hosts

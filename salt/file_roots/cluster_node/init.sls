@@ -3,7 +3,6 @@ include:
     - cluster_node.network
 {% endif %}
     - cluster_node.hosts
-    - cluster_node.cluster_packages
 {% if grains['cluster_ssh_pub'] is defined and grains['cluster_ssh_key'] is defined %}
     - cluster_node.ssh
 {% endif %}

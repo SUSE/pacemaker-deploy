@@ -10,6 +10,7 @@ network_domain: "{{ salt.monitor.network_domain }}"
 
 host_ips: ["{{ terraform.monitor.private_ip }}"]
 
+shared_storage_type: "{{ terraform.common.shared_storage_type }}"
 host_ip: "{{ terraform.monitor.private_ip }}"
 
 monitored_hosts: {{ jsonify(terraform.node.private_ips) }}

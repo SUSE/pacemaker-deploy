@@ -91,16 +91,6 @@ install () {
     configure_salt_minion
 }
 
-generic () {
-    salt-call                  \
-        --local                \
-        --log-level=debug      \
-        --log-file-level=debug \
-        --retcode-passthrough  \
-        $(salt_output_colored) \
-        state.highstate saltenv=generic || exit 1
-}
-
 config () {
     salt-call                  \
         --local                \
@@ -121,6 +111,12 @@ start () {
         state.highstate saltenv=base || exit 1
 }
 
+on_destroy() {
+    #if [[ ! $(SUSEConnect -s | grep "Not Registered") ]];then
+        sudo /usr/bin/SUSEConnect -d
+    #fi
+}
+
 print_help () {
     cat <<-EOF
 Provision the machines. The provisioning has different steps, so they can be executed depending on
@@ -129,9 +125,9 @@ from top to bottom in this help text.
 
 Supported Options (if no options are provided (excluding -l) all the steps will be executed):
   -i               Bootstrap salt installation and configuration. It will register to SCC channels if needed
-  -g               Execute generic config operations (update hosts and hostnames, install support packages, etc)
-  -c               Execute specific config operations for the node type
+  -c               Execute config operations (update hosts and hostnames, install support packages, etc)
   -s               Execute deployment operations (fire up corosync, pacemaker, etc)
+  -d               Execute on destroy operations (deregistering systems, etc)
   -l [LOG_FILE]    Append the log output to the provided file
   -h               Show this help.
 EOF
@@ -148,14 +144,14 @@ while getopts ":higcsl:" opt; do
         i)
             execute_install=1
             ;;
-        g)
-            execute_generic=1
-            ;;
         c)
             execute_config=1
             ;;
         s)
             execute_start=1
+            ;;
+        d)
+            execute_on_destroy=1
             ;;
         l)
             log_to_file=$OPTARG
@@ -175,13 +171,12 @@ fi
 
 if [ $argument_number -eq 0 ]; then
     install
-    generic
     config
     start
 else
     [[ -n $execute_install ]] && install
-    [[ -n $execute_generic ]] && generic
     [[ -n $execute_config ]] && config
     [[ -n $execute_start ]] && start
+    [[ -n $execute_on_destroy ]] && on_destroy
 fi
 exit 0

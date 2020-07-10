@@ -10,6 +10,8 @@ network_domain: "{{ salt.iscsi.network_domain }}"
 
 host_ip: "{{ terraform.iscsi.private_ip }}"
 
+shared_storage_type: "{{ terraform.common.shared_storage_type }}"
+
 iscsi_ip: "{{ terraform.iscsi.private_ip }}"
 
 iscsi_device: "{{ salt.iscsi.device }}"
