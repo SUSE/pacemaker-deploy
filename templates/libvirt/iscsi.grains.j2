@@ -2,13 +2,19 @@ provider: libvirt
 
 role: iscsi
 
+name_prefix: "{{ name }}-iscsi"
+
+hostname: "{{ name }}-iscsi"
+
+network_domain: "{{ salt.iscsi.network_domain }}"
+
 host_ip: "{{ terraform.iscsi.private_ip }}"
 
-iscsi_srv_ip: "{{ terraform.iscsi.private_ip }}"
+iscsi_ip: "{{ terraform.iscsi.private_ip }}"
 
-#iscsi_dev: ${var.iscsi_dev}
+iscsi_device: "{{ salt.iscsi.device }}"
 
-#iscsi_disks: ${var.iscsi_disks}
+iscsi_disks: {{ salt.iscsi.disks }}
 
 reg_email: "{{ salt.common.reg_email }}"
 

@@ -1,3 +1,3 @@
 include:
-    - iscsi_srv.parted
+    - iscsi_server.parted
     - iscsi.target

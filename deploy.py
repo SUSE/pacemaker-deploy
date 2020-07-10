@@ -59,6 +59,7 @@ def create(filename):
         logging.critical(f"Phase 'upload' failed")
         return res
 
+    return res
     res = provision(name)
     if tasks.has_failed(res):
         logging.critical(f"Phase 'provision' failed")
@@ -376,16 +377,16 @@ def provision(name):
     logging.info("[X] Gathering hosts...")
 
     hosts = []
-    
+
+    # iscsi if present first
+    if "public_ip" in env["terraform"]["iscsi"]:
+        hosts.append(env["terraform"]["iscsi"]["public_ip"])
+
     # nodes
     for index in range(0, int(env["terraform"]["node"]["count"])):
         hosts.append(env["terraform"]["node"]["public_ips"][index])
 
-    # iscsi if present
-    if "public_ip" in env["terraform"]["iscsi"]:
-        hosts.append(env["terraform"]["iscsi"]["public_ip"])
-
-    # monitr if present
+    # monitor if present
     if "public_ip" in env["terraform"]["monitor"]:
         hosts.append(env["terraform"]["monitor"]["public_ip"])
 

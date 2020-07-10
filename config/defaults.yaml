@@ -28,8 +28,8 @@ terraform:
         volume_name: ""          # overrides common/volumne_name
         cpus: 2                  # number of cpus
         memory: 1024             # memory size in MiB
-        disk_size: 68719476736   # disk size in bytes
-
+        disk_size: 1073741824    # disk size in bytes
+                    
     monitor:                     # monitor specific config
         enabled: false           # indicates if monitor is used
         source_image: ""         # overrides common/source_image
@@ -51,7 +51,10 @@ salt:
     node:
         network_domain: local
 
-    iscsi: {}
+    iscsi:
+        device: "/dev/vdb"       # iSCSI device in server
+        disks: 0                 # Number of partitions attach to iscsi server. 0 means all
+
 
     monitor:
         network_domain: local

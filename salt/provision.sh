@@ -17,11 +17,8 @@ get_grain () {
 }
 
 salt_output_colored () {
-    if [[ "$(get_grain qa_mode)" == "true" ]]; then
-        echo "--no-color"
-    else
-        echo "--force-color"
-    fi
+    #echo "--no-color"
+    echo "--force-color"
 }
 
 install_salt_minion () {
@@ -54,8 +51,19 @@ install_salt_minion () {
     fi
 }
 
+configure_salt_minion () {
+    salt-call                  \
+        --local                \
+        --file-root=/tmp/salt  \
+        --log-level=debug      \
+        --log-file-level=debug \
+        --retcode-passthrough  \
+        $(salt_output_colored) \
+        state.apply minion || exit 1
+}
+
 install () {
-    mv /tmp/salt /root || true
+    #mv /tmp/salt /root || true
 
     # Get registration code
     reg_code=$(get_grain reg_code /tmp/grains)
@@ -77,28 +85,38 @@ install () {
 
     # Recheck if salt-call is installed. If it's not available stop execution
     which salt-call || exit 1
+
     # Move salt grains to salt folder
-    mkdir -p /etc/salt;mv /tmp/grains /etc/salt || true
+    #mkdir -p /etc/salt;mv /tmp/grains /etc/salt || true
+    configure_salt_minion
+}
+
+generic () {
+    salt-call                  \
+        --local                \
+        --log-level=debug      \
+        --log-file-level=debug \
+        --retcode-passthrough  \
+        $(salt_output_colored) \
+        state.highstate saltenv=generic || exit 1
 }
 
 config () {
-    salt-call \
-        --local \
-        --file-root=/root/salt/state \
-        --pillar-root=/root/salt/pillar \
-        --log-level=debug \
+    salt-call                  \
+        --local                \
+        --log-level=debug      \
         --log-file-level=debug \
-        --retcode-passthrough \
+        --retcode-passthrough  \
         $(salt_output_colored) \
-        state.highstate || exit 1
+        state.highstate saltenv=config || exit 1
 }
 
 start () {
-	salt-call \
-        --local \
-        --log-level=debug \
+    salt-call                  \
+        --local                \
+        --log-level=debug      \
         --log-file-level=debug \
-        --retcode-passthrough \
+        --retcode-passthrough  \
         $(salt_output_colored) \
         state.highstate saltenv=base || exit 1
 }
@@ -111,7 +129,8 @@ from top to bottom in this help text.
 
 Supported Options (if no options are provided (excluding -l) all the steps will be executed):
   -i               Bootstrap salt installation and configuration. It will register to SCC channels if needed
-  -c               Execute predeployment operations (update hosts and hostnames, install support packages, etc)
+  -g               Execute generic config operations (update hosts and hostnames, install support packages, etc)
+  -c               Execute specific config operations for the node type
   -s               Execute deployment operations (fire up corosync, pacemaker, etc)
   -l [LOG_FILE]    Append the log output to the provided file
   -h               Show this help.
@@ -119,7 +138,7 @@ EOF
 }
 
 argument_number=0
-while getopts ":hicsl:" opt; do
+while getopts ":higcsl:" opt; do
     argument_number=$((argument_number + 1))
     case $opt in
         h)
@@ -128,6 +147,9 @@ while getopts ":hicsl:" opt; do
             ;;
         i)
             execute_install=1
+            ;;
+        g)
+            execute_generic=1
             ;;
         c)
             execute_config=1
@@ -153,10 +175,12 @@ fi
 
 if [ $argument_number -eq 0 ]; then
     install
+    generic
     config
     start
 else
     [[ -n $execute_install ]] && install
+    [[ -n $execute_generic ]] && generic
     [[ -n $execute_config ]] && config
     [[ -n $execute_start ]] && start
 fi

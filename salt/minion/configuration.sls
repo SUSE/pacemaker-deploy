@@ -1,3 +1,8 @@
+copy_grains:
+    file.copy:
+        - name: /etc/salt/grains
+        - source: /tmp/grains
+
 backup_salt_configuration:
     file.copy:
         - name: /etc/salt/minion.backup
@@ -8,9 +13,23 @@ configure_file_roots:
         - name: /etc/salt/minion
         - text: |
             file_roots:
-                base:
-                    - /srv/salt
+                generic:
+                    - /srv/salt/generic
                     - /usr/share/salt-formulas/states
+                config:
+                    - /srv/salt/config
+                    - /usr/share/salt-formulas/states
+                base:
+                    - /srv/salt/base
+                    - /usr/share/salt-formulas/states
+
+            pillar_roots:
+                generic:
+                    - /srv/pillar/generic
+                config:
+                    - /srv/pillar/config
+                base:
+                    - /srv/pillar/base
 
 # Old module.run style will be deprecated after sodium release
 upgrade_module_run:

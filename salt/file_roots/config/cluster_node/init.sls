@@ -10,7 +10,6 @@ include:
 {% if grains['shared_storage_type'] == 'iscsi' %}
     - cluster_node.iscsi_initiator
 {% endif %}
-    - cluster_node.setup
 {% if grains.get('monitor_enabled') %}
     - cluster_node.monitor
 {% endif %}

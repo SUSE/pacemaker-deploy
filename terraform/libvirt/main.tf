@@ -98,7 +98,6 @@ module "iscsi" {
     cpus                  = var.iscsi_cpus
     memory                = var.iscsi_memory
     disk_size             = var.iscsi_disk_size
-    iscsi_dev             = "/dev/vdb"
     public_bridge         = var.public_bridge
     public_network_id     = local.public_network_id
     private_network_id    = local.private_network_id

@@ -1,12 +1,12 @@
-base:
+config:
     'role:node':
         - match: grain
-        - os_setup
-        - default
         - cluster_node
+
+    'role:iscsi':
+        - match: grain
+        - iscsi_server
 
     'role:monitor':
         - match: grain
-        - os_setup
-        - default
         - monitor

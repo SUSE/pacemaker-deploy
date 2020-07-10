@@ -33,11 +33,6 @@ variable "disk_size" {
     type        = number
 }
 
-variable "iscsi_dev" {
-    description = "Device iSCSI for iSCSI server"
-    type        = string
-}
-
 variable "public_bridge" {
     description = "Bridge identifier for bridged networking"
     type        = string

@@ -6,9 +6,9 @@ resource "libvirt_volume" "iscsi_image_disk" {
     base_volume_name = var.volume_name
 }
 
-resource "libvirt_volume" "iscsi_dev_disk" {
+resource "libvirt_volume" "iscsi_device_disk" {
     count = var.enabled ? 1 : 0
-    name  = "${terraform.workspace}-iscsi-dev"        
+    name  = "${terraform.workspace}-iscsi-device"        
     pool  = var.storage_pool
     size  = var.disk_size
 }
@@ -26,8 +26,9 @@ resource "libvirt_domain" "iscsi_domain" {
                 "vol_id" = element(libvirt_volume.iscsi_image_disk.*.id, count.index)
             },
             {
-                "vol_id" = element(libvirt_volume.iscsi_dev_disk.*.id, count.index)
-        }]
+                "vol_id" = element(libvirt_volume.iscsi_device_disk.*.id, count.index)
+            }
+        ]
 
         content {
             volume_id = disk.value.vol_id
