@@ -23,14 +23,14 @@ prometheus:
 prometheus_alerts:
   file.managed:
     - name:  /etc/prometheus/rules.yml
-    - source: salt://monitoring/prometheus/rules.yml
+    - source: salt://monitor/prometheus/rules.yml
     - require:
       - pkg: prometheus
 
 prometheus_configuration:
   file.managed:
     - name:  /etc/prometheus/prometheus.yml
-    - source: salt://monitoring/prometheus/prometheus.yml.j2
+    - source: salt://monitor/prometheus/prometheus.yml.j2
     - template: jinja
     - require:
       - pkg: prometheus
@@ -79,7 +79,7 @@ grafana_port_configuration:
 grafana_provisioning_directory:
   file.recurse:
     - name: /etc/grafana/provisioning
-    - source: salt://monitoring/provisioning
+    - source: salt://monitor/provisioning
     - clean: True
     - user: grafana
     - group: grafana

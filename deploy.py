@@ -374,9 +374,11 @@ def provision(name):
     #
     logging.info("[X] Gathering hosts...")
 
-    hosts = utils.get_hosts_from_env(env)
+    hosts_first  = utils.get_hosts_from_env_first(env)
+    hosts_second = utils.get_hosts_from_env_second(env)
 
-    logging.info(f"Host to provision = {hosts}")
+    logging.info(f"Host to provision first  = {hosts_first}")
+    logging.info(f"Host to provision second = {hosts_second}")
 
     logging.info("OK\n")
     
@@ -391,19 +393,29 @@ def provision(name):
     global clock_task_active
     clock_task_active = True
     clock = threading.Thread(target=clock_task, args=("provision",))
-    provision_join_tasks = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts]
+    provision_join_tasks_first  = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts_first]
+    provision_join_tasks_second = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts_second]
 
-    # Execute provisioning in mostly parallel (first a node initializing the cluster, the the rest joining in parallel)
+    # Execute provisioning in mostly parallel (first a group of machines, then the second one)
     clock.start() 
 
-    logging.info(f"Provisioning nodes")
+    logging.info(f"Provisioning nodes (first group)")
 
-    for task in provision_join_tasks:
+    for task in provision_join_tasks_first:
         task.start()
 
-    for task in provision_join_tasks:
+    for task in provision_join_tasks_first:
         task.join()
-    
+
+    logging.info(f"Provisioning nodes (second group)")
+
+    for task in provision_join_tasks_second:
+        task.start()
+
+    for task in provision_join_tasks_second:
+        task.join()
+
+
     with clock_task_mutex:        
         clock_task_active = False
     clock.join()
