@@ -3,6 +3,10 @@ base:
         - match: grain
         - cluster_node
         - cluster
+{% if grains['qdevice_enabled'] %}
+        - cluster_node.qdevice
+{% endif %}
+
 
     'role:iscsi':
         - match: grain
@@ -11,6 +15,10 @@ base:
     'role:monitor':
         - match: grain
         - monitor
+
+    'role:qdevice':
+        - match: grain
+        - qdevice
 
 config:
     '*':

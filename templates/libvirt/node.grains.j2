@@ -30,6 +30,10 @@ reg_additional_modules: {}
 
 ha_repo: "{{ salt.common.ha_repo }}"
 
+qdevice_enabled: "{{ jsonify(terraform.qdevice.enabled) }}"
+
+qdevice_ip: "{{  terraform.qdevice.private_ip if terraform.qdevice.enabled }}"
+
 #additional_packages: [${join(", ", formatlist("'%s'", var.additional_packages))}]
 
 #authorized_keys: [${trimspace(file(var.public_key_location))}]

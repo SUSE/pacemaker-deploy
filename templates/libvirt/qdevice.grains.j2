@@ -1,0 +1,27 @@
+provider: libvirt
+
+role: qdevice
+
+name_prefix: "{{ name }}-qdevice"
+
+hostname: "{{ name }}-qdevice"
+
+network_domain: "{{ salt.monitor.network_domain }}"
+
+reg_email: "{{ salt.common.reg_email }}"
+
+reg_code: "{{ salt.common.reg_code }}"
+
+reg_additional_modules: {}
+
+ha_repo: "{{ salt.common.ha_repo }}"
+
+qdevice_enabled: "{{ jsonify(terraform.qdevice.enabled) }}"
+
+shared_storage_type: "{{ terraform.common.shared_storage_type }}"
+
+host_ip: "{{ terraform.qdevice.private_ip }}"
+
+#additional_packages: [${join(", ", formatlist("'%s'", var.additional_packages))}]
+
+#authorized_keys: [${trimspace(file(var.public_key_location))}]

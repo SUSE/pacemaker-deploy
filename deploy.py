@@ -224,7 +224,15 @@ def infrastructure(name):
         logging.info("Rendered monitor.grains")
         with open(f"{path}/monitor.grains", "r") as f:
             logging.debug(f"{f.read()}")
-    
+
+    # if there is a qdevice, render grains file for qdevice using enviroment
+    if "public_ip" in env["terraform"]["qdevice"]:
+        utils.template_render(utils.path_templates(env["provider"]), "qdevice.grains.j2", path, **env)
+
+        logging.info("Rendered qdevice.grains")
+        with open(f"{path}/qdevice.grains", "r") as f:
+            logging.debug(f"{f.read()}")
+
     logging.info("OK\n")
 
     return tasks.success()
@@ -266,6 +274,12 @@ def upload(name):
         host = env["terraform"]["monitor"]["public_ip"]
         uploads.append( (host, "./salt", "/tmp/salt") )
         uploads.append( (host, f"{path}/monitor.grains", "/tmp/grains") )
+
+    # if there is a qdevice, copy salt directory and grains file to qdevice device
+    if "public_ip" in env["terraform"]["qdevice"]:
+        host = env["terraform"]["qdevice"]["public_ip"]
+        uploads.append( (host, "./salt", "/tmp/salt") )
+        uploads.append( (host, f"{path}/qdevice.grains", "/tmp/grains") )
 
     logging.info(f"{uploads}")
 
