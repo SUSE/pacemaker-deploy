@@ -4,7 +4,7 @@ role: qdevice
 
 name_prefix: "{{ name }}-qdevice"
 
-hostname: "{{ name }}-qdevice"
+host: "{{ name }}-qdevice"
 
 network_domain: "{{ salt.monitor.network_domain }}"
 
@@ -21,6 +21,8 @@ qdevice_enabled: "{{ jsonify(terraform.qdevice.enabled) }}"
 shared_storage_type: "{{ terraform.common.shared_storage_type }}"
 
 host_ip: "{{ terraform.qdevice.private_ip }}"
+
+qdevice_options: "{{ salt.qdevice.options }}"
 
 #additional_packages: [${join(", ", formatlist("'%s'", var.additional_packages))}]
 

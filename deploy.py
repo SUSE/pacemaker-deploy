@@ -388,51 +388,89 @@ def provision(name):
     #
     logging.info("[X] Gathering hosts...")
 
-    hosts_first  = utils.get_hosts_from_env_first(env)
-    hosts_second = utils.get_hosts_from_env_second(env)
+    provision_all_nodes_at_the_same_time = True
 
-    logging.info(f"Host to provision first  = {hosts_first}")
-    logging.info(f"Host to provision second = {hosts_second}")
-
-    logging.info("OK\n")
-    
-    #
-    # Launch provision.sh
-    #
-    logging.info("[X] Launching provisioning...")
-
-    # Prepare tasks
-    phases = ["install", "config", "start"]
     global clock_task_mutex
     global clock_task_active
-    clock_task_active = True
-    clock = threading.Thread(target=clock_task, args=("provision",))
-    provision_join_tasks_first  = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts_first]
-    provision_join_tasks_second = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts_second]
+    
+    if provision_all_nodes_at_the_same_time:
+        hosts = utils.get_hosts_from_env_first(env) + utils.get_hosts_from_env_second(env)
 
-    # Execute provisioning in mostly parallel (first a group of machines, then the second one)
-    clock.start() 
+        logging.info(f"Host to provision  = {hosts}")
 
-    logging.info(f"Provisioning nodes (first group)")
+        logging.info("OK\n")
+    
+        #
+        # Launch provision.sh
+        #
+        logging.info("[X] Launching provisioning...")
 
-    for task in provision_join_tasks_first:
-        task.start()
+        # Prepare tasks
+        phases = ["install", "config", "start"]
+        clock_task_active = True
+        clock = threading.Thread(target=clock_task, args=("provision",))
+        provision_join_tasks  = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts]
 
-    for task in provision_join_tasks_first:
-        task.join()
+        # Execute provisioning in mostly parallel (first a group of machines, then the second one)
+        clock.start() 
 
-    logging.info(f"Provisioning nodes (second group)")
+        logging.info(f"Provisioning nodes")
 
-    for task in provision_join_tasks_second:
-        task.start()
+        for task in provision_join_tasks:
+            task.start()
 
-    for task in provision_join_tasks_second:
-        task.join()
+        for task in provision_join_tasks:
+            task.join()
+
+        with clock_task_mutex:        
+            clock_task_active = False
+        clock.join()
+
+    else:
+
+        hosts_first  = utils.get_hosts_from_env_first(env)
+        hosts_second = utils.get_hosts_from_env_second(env)
+
+        logging.info(f"Host to provision first  = {hosts_first}")
+        logging.info(f"Host to provision second = {hosts_second}")
+
+        logging.info("OK\n")
+    
+        #
+        # Launch provision.sh
+        #
+        logging.info("[X] Launching provisioning...")
+
+        # Prepare tasks
+        phases = ["install", "config", "start"]
+        clock_task_active = True
+        clock = threading.Thread(target=clock_task, args=("provision",))
+        provision_join_tasks_first  = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts_first]
+        provision_join_tasks_second = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts_second]
+
+        # Execute provisioning in mostly parallel (first a group of machines, then the second one)
+        clock.start() 
+
+        logging.info(f"Provisioning nodes (first group)")
+
+        for task in provision_join_tasks_first:
+            task.start()
+
+        for task in provision_join_tasks_first:
+            task.join()
+
+        logging.info(f"Provisioning nodes (second group)")
+
+        for task in provision_join_tasks_second:
+            task.start()
+
+        for task in provision_join_tasks_second:
+            task.join()
 
 
-    with clock_task_mutex:        
-        clock_task_active = False
-    clock.join()
+        with clock_task_mutex:        
+            clock_task_active = False
+        clock.join()
     
     logging.info("OK\n")
 

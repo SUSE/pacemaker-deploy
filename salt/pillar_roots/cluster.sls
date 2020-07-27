@@ -5,7 +5,7 @@
 {% endif %}
 
 cluster:
-    name: test_cluster
+    name: {{ grains['cluster_name'] }}-cluster
     init: {{ grains['name_prefix'] }}01
 {% if grains['provider'] == 'libvirt' %}
     interface: eth1
@@ -25,8 +25,8 @@ cluster:
         overwrite: true
         password: linux
 {% endif %}
-    resource_agents:
-        - SAPHanaSR
+#   resource_agents:
+#       - SAPHanaSR
 {% if grains['provider'] == 'azure' %}
     corosync:
         totem:

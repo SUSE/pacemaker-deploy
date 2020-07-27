@@ -59,4 +59,6 @@ salt:
     monitor:
         network_domain: local
 
-    qdevice: {}
+    qdevice:
+        options: ""
+

@@ -2,9 +2,11 @@ provider: libvirt
 
 role: node
 
+cluster_name: "{{ name }}"
+
 name_prefix: "{{ name }}-node"
 
-hostname: "{{ name }}-node0{{ index + 1 }}"
+host: "{{ name }}-node0{{ index + 1 }}"
 
 network_domain: "{{ salt.node.network_domain }}"
 
