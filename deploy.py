@@ -265,13 +265,10 @@ def provision_task(name, host, phases):
     """
     Executes the provisioning in a given host.
     """
-    logging.info(f"provision launching -> [{name}={host}]")
-    
     #
     # Execute provisioning
     #
     for phase in phases:
-        logging.info(f"phase {phase} starting -> [{name}={host}]")
         res = ssh.run("root", "linux", host, f"sh /tmp/salt/provision.sh -{phase[0]} -l /var/log/provision.log")
         if tasks.has_failed(res):
             logging.info(f"phase {phase} error -> [{name}={host}]")
@@ -296,10 +293,9 @@ def provision_task(name, host, phases):
     # Log global result
     #
     if tasks.has_succeeded(res):
-        logging.info(f"provisioning SUCCESS -> [{name}={host}]")
+        logging.info(f"provisioning SUCCESS -> [{name}={host}] for {phases}")
     else:
-        logging.error(f"provisioning FAILED -> [{name}={host}]")
-        logging.error(f"    continue provisioning with => deploy.py provision {host} --from={phase}")
+        logging.error(f"provisioning FAILED -> [{name}={host}] for {phases}")
 
     return res
 
@@ -363,16 +359,17 @@ def provision(name):
    
     clock.start() 
 
-    group1 = filter(lambda tuple: tuple[0] != "node" or tuple[2] == "node01", hosts)
-    group2 = filter(lambda tuple: tuple[0] == "node" and tuple[2] != "node01", hosts)
+    group1 = [ host for host in hosts if host[0] != "node" or  host[2] == "node01"]
+    group2 = [ host for host in hosts if host[0] == "node" and host[2] != "node01"]
 
     provision_tasks1  = [threading.Thread(target=provision_task, args=(name, host, phases)) for role, index, name, host in group1]
-    provision_tasks2  = [threading.Thread(target=provision_task, args=(name, host, phases)) for role, index, name, host in group2]
+    provision_tasks2  = [threading.Thread(target=provision_task, args=(name, host, ["install", "config"])) for role, index, name, host in group2]
+    provision_tasks3  = [threading.Thread(target=provision_task, args=(name, host, ["start"])) for role, index, name, host in group2]
+
+    logging.info(f"Running first stage")
 
     for task in provision_tasks1:
         task.start()
-
-    time.sleep(30)
 
     for task in provision_tasks2:
         task.start()
@@ -381,6 +378,14 @@ def provision(name):
         task.join()
 
     for task in provision_tasks2:
+        task.join()
+
+    logging.info(f"Running second stage")
+
+    for task in provision_tasks3:
+        task.start()
+
+    for task in provision_tasks3:
         task.join()
 
     with clock_task_mutex:        

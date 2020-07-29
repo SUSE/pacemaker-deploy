@@ -4,7 +4,7 @@ base:
         - cluster_node
         - cluster
 {% if grains['qdevice_enabled'] %}
-        - cluster_node.qdevice
+        - cluster_node.qdevice_start
 {% endif %}
 
 

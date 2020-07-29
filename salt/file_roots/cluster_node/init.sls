@@ -16,4 +16,6 @@ include:
     - cluster_node.aws_add_credentials
     - cluster_node.aws_data_provider
 {%- endif %}
-  
+{% if grains['qdevice_enabled'] %}
+    - cluster_node.qdevice_setup
+{% endif %}
