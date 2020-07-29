@@ -11,7 +11,7 @@ ha-factory-repo:
         - name: ha-factory
         - baseurl: {{ repository }}
         - gpgautoimport: True
-        - priority: 110
+        - priority: 90
         - refresh: True
         - retry:
             attempts: 3

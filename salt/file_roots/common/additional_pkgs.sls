@@ -1,4 +1,4 @@
-{% if grains['additional_packages'] is defined %}
+{% if grains['additional_packages'] is defined and grains['additional_packages'] %}
 install_additional_packages:
     pkg.latest:
         - pkgs:

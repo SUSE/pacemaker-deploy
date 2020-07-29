@@ -113,7 +113,7 @@ start () {
 
 on_destroy() {
     #if [[ ! $(SUSEConnect -s | grep "Not Registered") ]];then
-        sudo /usr/bin/SUSEConnect -d
+        SUSEConnect -d
     #fi
 }
 
@@ -134,7 +134,7 @@ EOF
 }
 
 argument_number=0
-while getopts ":higcsl:" opt; do
+while getopts ":hicsdl:" opt; do
     argument_number=$((argument_number + 1))
     case $opt in
         h)

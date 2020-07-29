@@ -143,35 +143,21 @@ def get_log_level(loglevel, default):
     return loglevels[loglevel.upper()] if loglevel.upper() in loglevels else default
 
 
-def get_hosts_from_env_first(env):
-    hosts = []
-
-    # nodes
-    hosts.append(env["terraform"]["node"]["public_ips"][0])
-
-    # iscsi if present
-    if "public_ip" in env["terraform"]["iscsi"]:
-        hosts.append(env["terraform"]["iscsi"]["public_ip"])
-
-    # monitor if present
-    if "public_ip" in env["terraform"]["monitor"]:
-        hosts.append(env["terraform"]["monitor"]["public_ip"])
-
-    # qdevice if present
-    if "public_ip" in env["terraform"]["qdevice"]:
-        hosts.append(env["terraform"]["qdevice"]["public_ip"])
-
-    return hosts
-
-def get_hosts_from_env_second(env):
-    hosts = []
-
-    # nodes
-    for index in range(1, int(env["terraform"]["node"]["count"])):
-        hosts.append(env["terraform"]["node"]["public_ips"][index])
-
-    return hosts
-
-
 def get_hosts_from_env(env):
-    return get_hosts_from_env_first(env) + get_hosts_from_env_second(env)
+    hosts = []
+
+    # nodes
+    role = "node"
+    for index in range(0, int(env["terraform"]["node"]["count"])):
+        name = f"{role}{(index + 1):0>2}"
+        host = env["terraform"][role]["public_ips"][index]
+        hosts.append( (role, index, name, host) )
+
+    # if there is a [iscsi, monitor, qdevice] device, copy salt directory and grains file
+    for role in ["iscsi", "monitor", "qdevice"]:
+        if "public_ip" in env["terraform"][role]:
+            name = role
+            host = env["terraform"][role]["public_ip"]
+            hosts.append( (role, 0, name, host) )
+
+    return hosts

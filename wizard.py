@@ -58,12 +58,6 @@ def validate_ip_range(answers, ip_range):
         raise inquirer.errors.ValidationError('', reason=f'Invalid IP cidr range: {ip_range}')
 
 
-def validate_shared_storage_type(answers, shared_storage):
-    #if shared_storage in ['iscsi']:
-    #    raise inquirer.errors.ValidationError('', reason=f'Shared storage {shared_storage} not yet available')
-    return True
-
-
 def validate_sbd_disk_size(answers, sbd_disk_size):
     try:
         size = int(sbd_disk_size)
@@ -101,32 +95,33 @@ def libvirt_terraform(defaults, theme):
     panel_show("TERRAFORM")
 
     """
-            "source_image": "",
-            "volume_name": "SLES4SAP-15_SP1",
-            "network_name": "",
-            "isolated_network_bridge": "virbr128",
+    common:                                 # generic infrastructure settings
+        source_image: ""                    # url for the image of the OS
+        volume_name: ""                     # alternatively, in KVM, a volume can be specified
+        private_ip_range: 192.168.10.0/24   # private network range
+        public_ip_range: 10.10.10.0/24      # public network range (NAT network)
+        public_bridge: ""                   # if set (eg: "br0"), has precedence and allows public access
     """
 
     panel_show("Common questions about the cluster")
     common_questions = [
         inquirer.Text("qemu_uri",
-                      message="Enter URI for the KVM hypervisor",
-                      default=defaults["common"]["qemu_uri"]),
+                      message = "Enter URI for the KVM hypervisor",
+                      default = defaults["common"]["qemu_uri"]),
         inquirer.Text("storage_pool", 
-                      message="Enter storage pool",
-                      default=defaults["common"]["storage_pool"]),
+                      message = "Enter storage pool",
+                      default = defaults["common"]["storage_pool"]),
         inquirer.Text("ip_range",
-                      message="Enter IP range (cidr format, eg: 192.168.144.0/24)",
-                      validate=validate_ip_range),
+                      message  = "Enter IP range (cidr format, eg: 192.168.144.0/24)",
+                      validate = validate_ip_range),
         inquirer.List("shared_storage_type",
-                      message="Select the shared storage type",
-                      choices=["shared-disk", "iscsi"], 
-                      validate=validate_shared_storage_type),
+                      message = "Select the shared storage type",
+                      choices = ["shared-disk", "iscsi"]),
         inquirer.Text("sbd_disk_size",
-                      message="Enter the size in bytes of the shared storage device disk", 
-                      validate=validate_sbd_disk_size,
-                      default=defaults["common"]["sbd_disk_size"],
-                      ignore=lambda answers: answers["shared_storage_type"]=="iscsi"),
+                      message  = "Enter the size in bytes of the shared storage device disk", 
+                      validate = validate_sbd_disk_size,
+                      default  = defaults["common"]["sbd_disk_size"],
+                      ignore   = lambda answers: answers["shared_storage_type"]=="iscsi"),
     ]
     terraform_answers["common"] = inquirer.prompt(common_questions, theme=theme)
     print("")

@@ -1,4 +1,4 @@
-{% if grains['authorized_keys'] is defined %}
+{% if grains['authorized_keys'] is defined and grains['authorized_keys']%}
 authorized_keys:
     file.append:
         - name: /root/.ssh/authorized_keys

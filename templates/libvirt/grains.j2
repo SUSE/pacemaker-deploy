@@ -1,0 +1,77 @@
+provider: libvirt
+
+role: {{ role }}
+
+cluster_name: "{{ name }}"
+
+
+## COMMON ##
+{% if role == "node" %}
+host: "{{ name }}-{{ role }}{{'{:0>2}'.format(index + 1)}}"
+host_ip: "{{ terraform.node.private_ips[index] }}"
+{% else %}
+host: "{{ name }}-{{ role }}"
+host_ip: "{{ terraform[role].private_ip }}"
+{% endif %}
+
+network_domain: "{{ salt[role].network_domain }}"
+
+reg_email: "{{ salt.common.reg_email }}"
+
+reg_code: "{{ salt.common.reg_code }}"
+
+reg_additional_modules: {}
+
+ha_repo: "{{ salt.common.ha_repo }}"
+
+additional_packages: [] ##["", ...]
+
+additional_repos: {}    ##{ corosync: "http://download.suse.de/ibs/home:/yandroskaos:/branches:/SUSE:/SLE-15-SP1:/Update/standard/" }
+
+authorized_keys: []     ##[ "key" ]
+
+
+
+## NODE ##
+name_prefix: "{{ name }}-node"
+
+host_ips: {{ jsonify(terraform.node.private_ips) }}
+
+shared_storage_type: "{{ terraform.common.shared_storage_type }}"
+
+sbd_disk_index: 1
+
+sbd_disk_device: "{{ "/dev/vdb" if terraform.common.shared_storage_type == "shared-disk" else "/dev/sdb" }}"
+
+monitor_enabled: {{ jsonify(terraform.monitor.enabled) }}
+
+qdevice_enabled: {{ jsonify(terraform.qdevice.enabled) }}
+
+qdevice_ip: "{{  terraform.qdevice.private_ip if terraform.qdevice.enabled }}"
+
+iscsi_ip: "{{ terraform.iscsi.private_ip }}"
+
+
+
+## QDEVICE ##
+qdevice_options: "{{ salt.qdevice.options }}"
+
+
+## MONITOR ##
+monitored_hosts: {{ jsonify(terraform.node.private_ips) }}
+
+
+## ISCSI ##
+iscsi_device: "{{ salt.iscsi.device }}"
+iscsi_disks: {{ salt.iscsi.disks }}
+partitions:
+  1:
+    start: 1
+    end: 33%
+  2:
+    start: 33%
+    end: 67%
+  3:
+    start: 67%
+    end: 100%
+

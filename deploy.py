@@ -53,7 +53,7 @@ def create(filename):
     if tasks.has_failed(res):
         logging.critical(f"Phase 'infrastructure' failed")
         return res
-    
+
     res = upload(name)
     if tasks.has_failed(res):
         logging.critical(f"Phase 'upload' failed")
@@ -71,6 +71,7 @@ def prepare(**env):
     """
     Prepare a deployment. Loads initial environment config and stores initial infrastructure files
     """
+
     #
     # Check deployment does not exist
     #
@@ -196,46 +197,30 @@ def infrastructure(name):
     #
     logging.info("[X] Copying provision files...")
 
-    # render grains files for nodes using enviroment
-    for index in range(0, int(env["terraform"]["node"]["count"])):
-        utils.template_render(utils.path_templates(env["provider"]), "node.grains.j2", path, index=index, **env)
+    for role, index, name, host in utils.get_hosts_from_env(env):
+        utils.template_render(utils.path_templates(env["provider"]), "grains.j2", path, role=role, index=index, **env)
 
-        res = tasks.run(f"cd {path} && mv node.grains node-0{index + 1}.grains")
+        res = tasks.run(f"cd {path} && mv grains {name}.grains")
         if tasks.has_failed(res):
             logging.critical(tasks.get_stderr(res))
             return res
 
-        logging.info(f"Rendered node-0{index + 1}.grains")
-        with open(f"{path}/node-0{index + 1}.grains", "r") as f:
-            logging.debug(f"{f.read()}")
-
-    # if there is a iscsi device, render grains file for iscsi using enviroment
-    if "public_ip" in env["terraform"]["iscsi"]:
-        utils.template_render(utils.path_templates(env["provider"]), "iscsi.grains.j2", path, **env)
-
-        logging.info("Rendered iscsi.grains")
-        with open(f"{path}/iscsi.grains", "r") as f:
-            logging.debug(f"{f.read()}")
-
-    # if there is a monitor device, render grains file for monitor using enviroment
-    if "public_ip" in env["terraform"]["monitor"]:
-        utils.template_render(utils.path_templates(env["provider"]), "monitor.grains.j2", path, **env)
-
-        logging.info("Rendered monitor.grains")
-        with open(f"{path}/monitor.grains", "r") as f:
-            logging.debug(f"{f.read()}")
-
-    # if there is a qdevice, render grains file for qdevice using enviroment
-    if "public_ip" in env["terraform"]["qdevice"]:
-        utils.template_render(utils.path_templates(env["provider"]), "qdevice.grains.j2", path, **env)
-
-        logging.info("Rendered qdevice.grains")
-        with open(f"{path}/qdevice.grains", "r") as f:
+        logging.info(f"Rendered {name}.grains")
+        with open(f"{path}/{name}.grains", "r") as f:
             logging.debug(f"{f.read()}")
 
     logging.info("OK\n")
 
     return tasks.success()
+
+
+def upload_task(name, host, origin, destiny):
+    res = ssh.safe_copy_to_host("root", "linux", host, origin, destiny)
+    if tasks.has_failed(res):
+        logging.critical(f"Cannot copy [{origin}] -> [({name}={host}):{destiny}]")
+        logging.critical(tasks.get_stderr(res))
+    
+    logging.info(f"Uploaded [{origin}] -> [({name}={host}):{destiny}]")
 
 
 def upload(name):
@@ -251,74 +236,48 @@ def upload(name):
         return res
 
     #
-    # Calculate uploads
-    #
-    logging.info("[X] Calculating files to upload...")
-
-    uploads = []
-    
-    # copy salt directory and grains files to nodes
-    for index in range(0, int(env["terraform"]["node"]["count"])):
-        host = env["terraform"]["node"]["public_ips"][index]
-        uploads.append( (host, "./salt", "/tmp/salt") )
-        uploads.append( (host, f"{path}/node-0{index + 1}.grains", "/tmp/grains") )
-
-    # if there is a iscsi device, copy salt directory and grains file to iscsi device
-    if "public_ip" in env["terraform"]["iscsi"]:
-        host = env["terraform"]["iscsi"]["public_ip"]
-        uploads.append( (host, "./salt", "/tmp/salt") )
-        uploads.append( (host, f"{path}/iscsi.grains", "/tmp/grains") )
-
-    # if there is a monitor device, copy salt directory and grains file to monitor device        
-    if "public_ip" in env["terraform"]["monitor"]:
-        host = env["terraform"]["monitor"]["public_ip"]
-        uploads.append( (host, "./salt", "/tmp/salt") )
-        uploads.append( (host, f"{path}/monitor.grains", "/tmp/grains") )
-
-    # if there is a qdevice, copy salt directory and grains file to qdevice device
-    if "public_ip" in env["terraform"]["qdevice"]:
-        host = env["terraform"]["qdevice"]["public_ip"]
-        uploads.append( (host, "./salt", "/tmp/salt") )
-        uploads.append( (host, f"{path}/qdevice.grains", "/tmp/grains") )
-
-    logging.info(f"{uploads}")
-
-    logging.info("OK\n")
-    
-    #
     # Execute uploads
     #
     logging.info("[X] Uploading files...")
+
+    uploads = []
     
-    for host, origin, destiny in uploads:
-        res = ssh.safe_copy_to_host("root", "linux", host, origin, destiny)
-        if tasks.has_failed(res):
-            logging.critical(f"Cannot copy [{origin}] -> [{host}:{destiny}]")
-            logging.critical(tasks.get_stderr(res))
-    
-        logging.info(f"Uploaded [{origin}] -> [{host}:{destiny}]")
-    
+    # copy salt directory and grains files to machines
+    for role, index, name, host in utils.get_hosts_from_env(env):
+        uploads.append( (name, host, "./salt", "/tmp/salt") )
+        uploads.append( (name, host, f"{path}/{name}.grains", "/tmp/grains") )
+
+    upload_tasks  = [threading.Thread(target=upload_task, args=(name, host, origin, destiny)) for name, host, origin, destiny in uploads]
+
+    # Execute upload in parallel
+    for task in upload_tasks:
+        task.start()
+
+    for task in upload_tasks:
+        task.join()
+
     logging.info("OK\n")
 
     return tasks.success()
 
 
-def provision_task(host, phases):
+def provision_task(name, host, phases):
     """
     Executes the provisioning in a given host.
     """
-    logging.info(f"[{host}] <- Provision launching...")
+    logging.info(f"provision launching -> [{name}={host}]")
     
     #
     # Execute provisioning
     #
     for phase in phases:
+        logging.info(f"phase {phase} starting -> [{name}={host}]")
         res = ssh.run("root", "linux", host, f"sh /tmp/salt/provision.sh -{phase[0]} -l /var/log/provision.log")
         if tasks.has_failed(res):
-            logging.info(f"[{host}] <- phase {phase} failed")
+            logging.info(f"phase {phase} error -> [{name}={host}]")
             break
         else:
-            logging.info(f"[{host}] <- phase {phase} executed")
+            logging.info(f"phase {phase} executed -> [{name}={host}]")
 
     #
     # Independently of success of provisioning process, cat logs
@@ -330,16 +289,17 @@ def provision_task(host, phases):
         rcopy = ssh.copy_from_host("root", "linux", host, log, destiny)
         if tasks.has_succeeded(rcopy):
             with open(destiny, "r") as f:
-                logging.debug(f"[{host}] {log} =\n{f.read()}")
+                logging.debug(f"[{name}={host}] {log} =\n{f.read()}")
     tasks.run(f"rm -f {destiny}")
 
     #
     # Log global result
     #
     if tasks.has_succeeded(res):
-        logging.info(f"[{host}] <- provisioning success")
+        logging.info(f"provisioning SUCCESS -> [{name}={host}]")
     else:
-        logging.error(f"[{host}] <- provisioning FAILED, continue provisioning with => deploy.py provision {host} --from={phase}")
+        logging.error(f"provisioning FAILED -> [{name}={host}]")
+        logging.error(f"    continue provisioning with => deploy.py provision {host} --from={phase}")
 
     return res
 
@@ -384,97 +344,63 @@ def provision(name):
         return res
 
     #
-    # Calculate hosts
+    # Launch provision.sh
     #
-    logging.info("[X] Gathering hosts...")
-
-    provision_all_nodes_at_the_same_time = True
-
     global clock_task_mutex
     global clock_task_active
-    
-    if provision_all_nodes_at_the_same_time:
-        hosts = utils.get_hosts_from_env_first(env) + utils.get_hosts_from_env_second(env)
 
-        logging.info(f"Host to provision  = {hosts}")
+    logging.info("[X] Launching provisioning...")
 
-        logging.info("OK\n")
-    
-        #
-        # Launch provision.sh
-        #
-        logging.info("[X] Launching provisioning...")
+    hosts = utils.get_hosts_from_env(env)
 
-        # Prepare tasks
-        phases = ["install", "config", "start"]
-        clock_task_active = True
-        clock = threading.Thread(target=clock_task, args=("provision",))
-        provision_join_tasks  = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts]
+    # Prepare tasks
+    phases = ["install", "config", "start"]
+    clock_task_active = True
+    clock = threading.Thread(target=clock_task, args=("clock",))
 
-        # Execute provisioning in mostly parallel (first a group of machines, then the second one)
-        clock.start() 
+    # Execute provisioning in mostly parallel (first a group of machines, then the second one)
+    logging.info(f"Provisioning nodes")
+   
+    clock.start() 
 
-        logging.info(f"Provisioning nodes")
+    group1 = filter(lambda tuple: tuple[0] != "node" or tuple[2] == "node01", hosts)
+    group2 = filter(lambda tuple: tuple[0] == "node" and tuple[2] != "node01", hosts)
 
-        for task in provision_join_tasks:
-            task.start()
+    provision_tasks1  = [threading.Thread(target=provision_task, args=(name, host, phases)) for role, index, name, host in group1]
+    provision_tasks2  = [threading.Thread(target=provision_task, args=(name, host, phases)) for role, index, name, host in group2]
 
-        for task in provision_join_tasks:
-            task.join()
+    for task in provision_tasks1:
+        task.start()
 
-        with clock_task_mutex:        
-            clock_task_active = False
-        clock.join()
+    time.sleep(30)
 
-    else:
+    for task in provision_tasks2:
+        task.start()
 
-        hosts_first  = utils.get_hosts_from_env_first(env)
-        hosts_second = utils.get_hosts_from_env_second(env)
+    for task in provision_tasks1:
+        task.join()
 
-        logging.info(f"Host to provision first  = {hosts_first}")
-        logging.info(f"Host to provision second = {hosts_second}")
+    for task in provision_tasks2:
+        task.join()
 
-        logging.info("OK\n")
-    
-        #
-        # Launch provision.sh
-        #
-        logging.info("[X] Launching provisioning...")
+    with clock_task_mutex:        
+        clock_task_active = False
+    clock.join()
 
-        # Prepare tasks
-        phases = ["install", "config", "start"]
-        clock_task_active = True
-        clock = threading.Thread(target=clock_task, args=("provision",))
-        provision_join_tasks_first  = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts_first]
-        provision_join_tasks_second = [threading.Thread(target=provision_task, args=(host, phases)) for host in hosts_second]
-
-        # Execute provisioning in mostly parallel (first a group of machines, then the second one)
-        clock.start() 
-
-        logging.info(f"Provisioning nodes (first group)")
-
-        for task in provision_join_tasks_first:
-            task.start()
-
-        for task in provision_join_tasks_first:
-            task.join()
-
-        logging.info(f"Provisioning nodes (second group)")
-
-        for task in provision_join_tasks_second:
-            task.start()
-
-        for task in provision_join_tasks_second:
-            task.join()
-
-
-        with clock_task_mutex:        
-            clock_task_active = False
-        clock.join()
-    
     logging.info("OK\n")
 
     return tasks.success()
+
+
+def destroy_task(name, host):
+    """
+    Destroys the provisioning in a given host.
+    """
+    res = ssh.run("root", "linux", host, f"sh /tmp/salt/provision.sh -d -l /var/log/destroying.log")
+        
+    logging.info(f"Provision destroy on [{name}={host}]")
+ 
+    return res
 
 
 def destroy(name):
@@ -496,8 +422,13 @@ def destroy(name):
 
     hosts = utils.get_hosts_from_env(env)
 
-    for host in hosts:
-        ssh.run("root", "linux", host, f"sh /tmp/salt/provision.sh -d -l /var/log/destroying.log")
+    destroy_tasks  = [threading.Thread(target=destroy_task, args=(name, host)) for role, index, name, host in hosts]
+
+    for task in destroy_tasks:
+        task.start()
+
+    for task in destroy_tasks:
+        task.join()
 
     logging.info("OK\n")
 
@@ -506,10 +437,9 @@ def destroy(name):
     #
     logging.info("[X] Eliminating server from known_hosts...")
 
-    hosts = utils.get_hosts_from_env(env)
-
-    for host in hosts:
+    for role, index, name, host in hosts:
         tasks.run(f"ssh-keygen -R {host} -f ~/.ssh/known_hosts")
+        logging.info(f"Eliminated from known_hosts [{name}={host}]")
 
     logging.info("OK\n")
 
@@ -620,7 +550,7 @@ Examples:
                 return
             
             if only:
-                res = provision_task(host, [ phase.lower() ] )
+                res = provision_task("host", host, [ phase.lower() ] )
             else:
                 provision_phases = [ phase.lower() ]
                 if phase == "INSTALL":
@@ -629,7 +559,7 @@ Examples:
                 if phase == "CONFIG":
                     provision_phases.append("start")
 
-                res = provision_task(host, provision_phases)
+                res = provision_task("host", host, provision_phases)
             return
 
     from docopt import docopt

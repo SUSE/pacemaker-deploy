@@ -84,8 +84,4 @@ The job of ```deploy.py``` is to orchestrate both. First executing the infrastru
 
 # TODO
 
-- qnetdevice infrastructure and provision
 - rest of cloud providers
-- test iscsi correctly
-- test monitor
-- verify if monitor is needed

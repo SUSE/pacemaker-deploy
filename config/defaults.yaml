@@ -47,18 +47,21 @@ salt:
         reg_email: ""
         reg_code: ""
         ha_repo: http://download.opensuse.org/repositories/network:ha-clustering:sap-deployments:devel
+        additional_pkgs: []
+        additional_repos: {}
 
     node:
         network_domain: local
 
     iscsi:
+        network_domain: local
         device: "/dev/vdb"       # iSCSI device in server
         disks: 0                 # Number of partitions attach to iscsi server. 0 means all
-
 
     monitor:
         network_domain: local
 
     qdevice:
+        network_domain: local
         options: ""
 
