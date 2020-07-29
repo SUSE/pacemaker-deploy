@@ -89,182 +89,308 @@ def intro(theme):
     return inquirer.prompt(questions, theme=theme)
 
 
-def libvirt_terraform(defaults, theme):
-    terraform_answers = {}
-
-    panel_show("TERRAFORM")
-
-    """
-    common:                                 # generic infrastructure settings
-        source_image: ""                    # url for the image of the OS
-        volume_name: ""                     # alternatively, in KVM, a volume can be specified
-        private_ip_range: 192.168.10.0/24   # private network range
-        public_ip_range: 10.10.10.0/24      # public network range (NAT network)
-        public_bridge: ""                   # if set (eg: "br0"), has precedence and allows public access
-    """
-
-    panel_show("Common questions about the cluster")
-    common_questions = [
+def common_questions(defaults_terraform, defaults_salt):
+    return [
         inquirer.Text("qemu_uri",
-                      message = "Enter URI for the KVM hypervisor",
-                      default = defaults["common"]["qemu_uri"]),
+                      message  = "Enter URI for the KVM hypervisor",
+                      default  = defaults_terraform["common"]["qemu_uri"]),
+        inquirer.Text("source_image",
+                      message  = "Enter the URL for the image used in the machines (alternatively you can enter later a volume name)",
+                      default  = defaults_terraform["common"]["source_image"]),
+        inquirer.Text("volume_name",
+                      message  = "Enter the volume name to be used",
+                      default  = defaults_terraform["common"]["volume_name"],
+                      ignore   = lambda answers: answers["source_image"]!=""),
         inquirer.Text("storage_pool", 
-                      message = "Enter storage pool",
-                      default = defaults["common"]["storage_pool"]),
-        inquirer.Text("ip_range",
-                      message  = "Enter IP range (cidr format, eg: 192.168.144.0/24)",
+                      message  = "Enter storage pool",
+                      default  = defaults_terraform["common"]["storage_pool"]),
+        inquirer.Text("private_ip_range",
+                      message  = "Enter IP range (cidr format)",
+                      default  = defaults_terraform["common"]["private_ip_range"],
                       validate = validate_ip_range),
+        inquirer.Text("public_bridge",
+                      message  = "If you have a bridge configured for networking, and want bridged access, set it here (eg: br0)",
+                      default  = defaults_terraform["common"]["public_bridge"]),
+        inquirer.Text("public_ip_range",
+                      message  = "Enter public IP range (cidr format)",
+                      default  = defaults_terraform["common"]["public_ip_range"],
+                      validate = validate_ip_range,
+                      ignore   = lambda answers: answers["public_bridge"]!=""),
         inquirer.List("shared_storage_type",
-                      message = "Select the shared storage type",
-                      choices = ["shared-disk", "iscsi"]),
-        inquirer.Text("sbd_disk_size",
+                      message  = "Select the shared storage type",
+                      choices  = ["shared-disk", "iscsi"]),
+        inquirer.Text("reg_email",
+                      message = "Enter your registration email",
+                      default = defaults_salt["common"]["reg_email"]),
+        inquirer.Password("reg_code", 
+                      message = "Enter your registration code",
+                      default = defaults_salt["common"]["reg_code"]),
+        inquirer.Text("ha_repo",
+                      message  = "What is the HA repository?",
+                      default = defaults_salt["common"]["ha_repo"]),
+        #inquirer.Text("additional_pkgs",
+        #              message = "Packages",
+        #              default  = defaults_salt["common"]["additional_pkgs"]),
+        #inquirer.Text("additional_repos",
+        #              message  = "Repositories", 
+        #              default  = defaults_salt["common"]["additional_repos"])
+    ]
+
+
+def node_questions(defaults_terraform, defaults_salt, answers_common):
+    return [
+        inquirer.Text("source_image",
+                      message  = "Do you want to specify a specific source image for cluster nodes? (alternatively leave empty and enter later a volume name)",
+                      default  = defaults_terraform["node"]["source_image"] if defaults_terraform["node"]["source_image"] != "" else answers_common["source_image"]),
+        inquirer.Text("volume_name",
+                      message  = "Enter the volume name to be used in the cluster nodes",
+                      default  = defaults_terraform["node"]["volume_name"] if defaults_terraform["node"]["volume_name"] != "" else answers_common["volume_name"],
+                      ignore   = lambda answers: answers["source_image"]!=""),
+        inquirer.Text("count", 
+                      message  = "Enter the number of nodes",
+                      default  = defaults_terraform["node"]["count"],
+                      validate = validate_is_number),
+        inquirer.Text("cpus", 
+                      message  = "Enter the number of cpus per node",
+                      default  = defaults_terraform["node"]["cpus"],
+                      validate = validate_is_number),
+        inquirer.Text("memory", 
+                      message  = "Enter the nodes memory in MB",
+                      default  = defaults_terraform["node"]["memory"],
+                      validate = validate_is_number),
+        inquirer.Text("disk_size", 
+                      message  = "Enter the nodes disk size in bytes",
+                      default  = defaults_terraform["node"]["disk_size"],
+                      validate = validate_is_number),
+        inquirer.Text("network_domain", 
+                      message  = "Enter the network domain",
+                      default  = defaults_salt["node"]["network_domain"])
+    ]
+
+
+def sbd_questions(defaults_terraform, defaults_salt, answers_common):
+    return [
+        inquirer.Text("disk_size",
                       message  = "Enter the size in bytes of the shared storage device disk", 
                       validate = validate_sbd_disk_size,
-                      default  = defaults["common"]["sbd_disk_size"],
-                      ignore   = lambda answers: answers["shared_storage_type"]=="iscsi"),
+                      default  = defaults_terraform["sbd"]["disk_size"])
     ]
-    terraform_answers["common"] = inquirer.prompt(common_questions, theme=theme)
+
+
+def iscsi_questions(defaults_terraform, defaults_salt, answers_common):
+    return [
+        inquirer.Text("source_image",
+                      message  = "Enter the URL for the image used in the iSCSI machine (alternatively you can enter later a volume name)",
+                      default  = defaults_terraform["iscsi"]["source_image"] if defaults_terraform["iscsi"]["source_image"] != "" else answers_common["source_image"]),
+        inquirer.Text("volume_name",
+                      message  = "Enter the volume name to be used in the iSCSI",
+                      default  = defaults_terraform["iscsi"]["volume_name"] if defaults_terraform["iscsi"]["volume_name"] != "" else answers_common["volume_name"],
+                      ignore   = lambda answers: answers["source_image"]!=""),
+        inquirer.Text("cpus", 
+                      message  = "Enter the number of cpus for iSCSI node",
+                      default  = defaults_terraform["iscsi"]["cpus"],
+                      validate = validate_is_number),
+        inquirer.Text("memory", 
+                      message  = "Enter the iSCSI node memory in MB",
+                      default  = defaults_terraform["iscsi"]["memory"],
+                      validate = validate_is_number),
+        inquirer.Text("disk_size",
+                      message  = "Enter the iSCSI node disk size in bytes",
+                      default  = defaults_terraform["iscsi"]["disk_size"],
+                      validate = validate_is_number),
+        inquirer.Text("network_domain", 
+                      message  = "Enter the network domain",
+                      default  = defaults_salt["iscsi"]["network_domain"]),
+        inquirer.Text("device", 
+                      message  = "Enter the iscsi device",
+                      default  = defaults_salt["iscsi"]["device"]),
+        inquirer.Text("disks",
+                      message  = "Enter the iSCSI disks",
+                      default  = str(defaults_salt["iscsi"]["disks"]),
+                      validate = validate_is_number)
+    ]
+
+
+def monitor_questions(defaults_terraform, defaults_salt, answers_common):
+    return [
+        inquirer.Confirm("enabled", 
+                      message   = "Do you want to use a monitor node?",
+                      default   = defaults_terraform["monitor"]["enabled"]),
+        inquirer.Text("source_image",
+                      message   = "Enter the URL for the image used in the monitor machine (alternatively you can enter later a volume name)",
+                      default   = defaults_terraform["monitor"]["source_image"] if defaults_terraform["monitor"]["source_image"] != "" else answers_common["source_image"],
+                      ignore    = lambda answers: answers["enabled"] == False),
+        inquirer.Text("volume_name",
+                      message   = "Enter the volume name to be used in the monitor",
+                      default   = defaults_terraform["monitor"]["volume_name"] if defaults_terraform["monitor"]["volume_name"] != "" else answers_common["volume_name"],
+                      ignore    = lambda answers: answers["enabled"] == False or answers["source_image"] != ""),
+        inquirer.Text("cpus", 
+                      message   = "Enter the number of cpus for monitor node",
+                      default   = defaults_terraform["monitor"]["cpus"],
+                      validate  = validate_is_number,
+                      ignore    = lambda answers: answers["enabled"] == False),
+        inquirer.Text("memory", 
+                      message   = "Enter the monitor node memory in MB",
+                      default   = defaults_terraform["monitor"]["memory"],
+                      validate  = validate_is_number,
+                      ignore    = lambda answers: answers["enabled"] == False),
+        inquirer.Text("network_domain", 
+                      message   = "Enter the network domain",
+                      default   = defaults_salt["monitor"]["network_domain"],
+                      ignore    = lambda answers: answers["enabled"] == False)
+    ]
+
+
+def qdevice_questions(defaults_terraform, defaults_salt, answers_common):
+    return [
+        inquirer.Confirm("enabled", 
+                      message   = "Do you want to use a quorum device?",
+                      default   = defaults_terraform["qdevice"]["enabled"]),
+        inquirer.Text("source_image",
+                      message   = "Enter the URL for the image used in the quorum machine (alternatively you can enter later a volume name)",
+                      default   = defaults_terraform["qdevice"]["source_image"] if defaults_terraform["qdevice"]["source_image"] != "" else answers_common["source_image"],
+                      ignore    = lambda answers: answers["enabled"] == False),
+        inquirer.Text("volume_name",
+                      message   = "Enter the volume name to be used in the quorum server",
+                      default   = defaults_terraform["qdevice"]["volume_name"] if defaults_terraform["qdevice"]["volume_name"] !="" else answers_common["volume_name"],
+                      ignore    = lambda answers: answers["enabled"] == False or answers["source_image"] != ""),
+        inquirer.Text("network_domain", 
+                      message   = "Enter the network domain",
+                      default   = defaults_salt["qdevice"]["network_domain"],
+                      ignore    = lambda answers: answers["enabled"] == False),
+        inquirer.Text("options", 
+                      message   = "Are there any more options to use in the quorum server?",
+                      default   = defaults_salt["qdevice"]["options"],
+                      ignore    = lambda answers: answers["enabled"] == False)
+    ]
+
+
+def libvirt_provider(defaults, theme):
+    answers = {}
+
+    panel_show("Common questions about the cluster")
+    answers["common"] = inquirer.prompt(common_questions(defaults["terraform"], defaults["salt"]), theme=theme)
     print("")
-
-    """
-            "source_image": "",
-            "volume_name": "",
-            "private_ip": ""
-    """
-    if terraform_answers["common"]["shared_storage_type"] == "iscsi":
-        #panel_show("You said you wanted a iSCSI server")
-        iscsi_questions = [
-            inquirer.Text("cpus", 
-                          message="Enter the number of cpus for iSCSI node",
-                          default=defaults["iscsi"]["cpus"],
-                          validate=validate_is_number),
-            inquirer.Text("memory", 
-                          message="Enter the iSCSI node memory in MB",
-                          default=defaults["iscsi"]["memory"],
-                          validate=validate_is_number),
-            inquirer.Text("disk_size",
-                          message="Enter the iSCSI node disk size in bytes",
-                          default=defaults["iscsi"]["disk_size"],
-                          validate=validate_is_number),
-        ]
-        terraform_answers["iscsi"] = inquirer.prompt(iscsi_questions, theme=theme)
-        print("")
-    else:
-        terraform_answers["iscsi"] = {}
-
-    """
-            "source_image": "",
-            "volume_name": "",
-            "private_ips": []
-    """
 
     panel_show("Let's talk about the nodes of your cluster")
-    node_questions = [
-        inquirer.Text("count", 
-                      message='Enter the number of nodes',
-                      default=defaults["node"]["count"],
-                      validate=validate_is_number),
-        inquirer.Text("cpus", 
-                      message="Enter the number of cpus per node",
-                      default=defaults["node"]["cpus"],
-                      validate=validate_is_number),
-        inquirer.Text('memory', 
-                      message='Enter the nodes memory in MB',
-                      default=defaults["node"]["memory"],
-                      validate=validate_is_number),
-        inquirer.Text("disk_size", 
-                      message="Enter the nodes disk size in bytes",
-                      default=defaults["node"]["disk_size"],
-                      validate=validate_is_number),
-    ]
-    terraform_answers["node"] = inquirer.prompt(node_questions, theme=theme)
+    answers["node"] = inquirer.prompt(node_questions(defaults["terraform"], defaults["salt"], answers["common"]), theme=theme)
     print("")
 
+    if answers["common"]["shared_storage_type"] == "iscsi":
+        panel_show("iSCSI questions")
+        answers["iscsi"] = inquirer.prompt(iscsi_questions(defaults["terraform"], defaults["salt"], answers["common"]), theme=theme)
+        print("")
+    else:
+        panel_show("SBD questions")
+        answers["sbd"] = inquirer.prompt(sbd_questions(defaults["terraform"], defaults["salt"], answers["common"]), theme=theme)
+        print("")
 
-    """
-            "source_image": "",
-            "volume_name": "",
-            "private_ip": ""
-    """
     panel_show("Monitor questions")
-    monitor_questions = [
-        inquirer.Confirm("enabled", 
-                        message="Do you want to use a monitor node?",
-                        default=defaults["monitor"]["enabled"]),
-        inquirer.Text("cpus", 
-                        message="Enter the number of cpus for monitor node",
-                        default=defaults["monitor"]["cpus"],
-                        validate=validate_is_number,
-                        ignore=lambda answers: answers["enabled"] == False),
-        inquirer.Text("memory", 
-                        message="Enter the monitor node memory in MB",
-                        default=defaults["monitor"]["memory"],
-                        validate=validate_is_number,
-                        ignore=lambda answers: answers["enabled"] == False),
-    ]
-    terraform_answers["monitor"] = inquirer.prompt(monitor_questions, theme=theme)
+    answers["monitor"] = inquirer.prompt(monitor_questions(defaults["terraform"], defaults["salt"], answers["common"]), theme=theme)
     print("")
 
-    return terraform_answers
+    panel_show("Quorum server questions")
+    answers["qdevice"] = inquirer.prompt(qdevice_questions(defaults["terraform"], defaults["salt"], answers["common"]), theme=theme)
+    print("")
+
+    return answers
 
 
-def salt(terraform_answers, defaults, theme):
-    salt_answers = {}
 
-    panel_show("PROVISION")
+def create_from_answers(answers, defaults):
+    deployment = {}
+
+    deployment["name"] = answers["name"]
+    deployment["provider"] = answers["provider"]
+
+    deployment["terraform"] = {}
+    deployment["salt"] = {}
+
+    ## COMMON
+    deployment["terraform"]["common"] = {}
+    deployment["terraform"]["common"]["qemu_uri"]            = answers["libvirt"]["common"]["qemu_uri"]
+    deployment["terraform"]["common"]["source_image"]        = answers["libvirt"]["common"]["source_image"]
+    deployment["terraform"]["common"]["volume_name"]         = answers["libvirt"]["common"]["volume_name"]
+    deployment["terraform"]["common"]["storage_pool"]        = answers["libvirt"]["common"]["storage_pool"]
+    deployment["terraform"]["common"]["private_ip_range"]    = answers["libvirt"]["common"]["private_ip_range"]
+    deployment["terraform"]["common"]["public_bridge"]       = answers["libvirt"]["common"]["public_bridge"]
+    deployment["terraform"]["common"]["shared_storage_type"] = answers["libvirt"]["common"]["shared_storage_type"]
+
+    deployment["salt"]["common"] = {}
+    deployment["salt"]["common"]["reg_email"]        = answers["libvirt"]["common"]["reg_email"]
+    deployment["salt"]["common"]["reg_code"]         = answers["libvirt"]["common"]["reg_code"]
+    deployment["salt"]["common"]["ha_repo"]          = answers["libvirt"]["common"]["ha_repo"]
+    #deployment["salt"]["common"]["additional_pkgs"]  = answers["libvirt"]["common"]["additional_pkgs"]
+    #deployment["salt"]["common"]["additional_repos"] = answers["libvirt"]["common"]["additional_repos"]
+    deployment["salt"]["common"]["additional_pkgs"]  = defaults["salt"]["common"]["additional_pkgs"]
+    deployment["salt"]["common"]["additional_repos"] = defaults["salt"]["common"]["additional_repos"]
+
+    ## NODE
+    deployment["terraform"]["node"] = {}
+    deployment["terraform"]["node"]["source_image"] = answers["libvirt"]["node"]["source_image"]
+    deployment["terraform"]["node"]["volume_name"]  = answers["libvirt"]["node"]["volume_name"]
+    deployment["terraform"]["node"]["count"]        = answers["libvirt"]["node"]["count"]
+    deployment["terraform"]["node"]["cpus"]         = answers["libvirt"]["node"]["cpus"]
+    deployment["terraform"]["node"]["memory"]       = answers["libvirt"]["node"]["memory"]
+    deployment["terraform"]["node"]["disk_size"]    = answers["libvirt"]["node"]["disk_size"]
+
+    deployment["salt"]["node"] = {}
+    deployment["salt"]["node"]["network_domain"] = answers["libvirt"]["node"]["network_domain"]
+
+    ## ISCSI / SBD
+    deployment["terraform"]["sbd"] = {}
+    deployment["terraform"]["iscsi"] = {}
+    deployment["salt"]["iscsi"] = {}
+
+    if deployment["terraform"]["common"]["shared_storage_type"] == "shared-disk":
+        deployment["terraform"]["sbd"]["disk_size"] = answers["libvirt"]["sbd"]["disk_size"]
+        deployment["terraform"]["iscsi"] = defaults["terraform"]["iscsi"]
+        deployment["salt"]["iscsi"] = defaults["salt"]["iscsi"]
+    else:
+        deployment["terraform"]["sbd"] = defaults["terraform"]["sbd"]
+
+        deployment["terraform"]["iscsi"]["source_image"] = answers["libvirt"]["iscsi"]["source_image"]
+        deployment["terraform"]["iscsi"]["volume_name"]  = answers["libvirt"]["iscsi"]["volume_name"]
+        deployment["terraform"]["iscsi"]["cpus"]         = answers["libvirt"]["iscsi"]["cpus"]
+        deployment["terraform"]["iscsi"]["memory"]       = answers["libvirt"]["iscsi"]["memory"]
+        deployment["terraform"]["iscsi"]["disk_size"]    = answers["libvirt"]["iscsi"]["disk_size"]
+
+        deployment["salt"]["iscsi"]["network_domain"] = answers["libvirt"]["iscsi"]["network_domain"]
+        deployment["salt"]["iscsi"]["device"]         = answers["libvirt"]["iscsi"]["device"]
+        deployment["salt"]["iscsi"]["disks"]          = answers["libvirt"]["iscsi"]["disks"]
+
+    ## MONITOR
+    deployment["terraform"]["monitor"] = {}
+    deployment["salt"]["monitor"] = {}
     
-    panel_show("Common questions about provisioning")
-    common_questions = [
-        inquirer.Text("reg_email",
-                      message="Enter your registration mail"),
-        inquirer.Password("reg_code", 
-                      message='Enter your registration code'),
-        inquirer.Text("ha_repo",
-                      message='Enter HA repository URL',
-                      default=defaults["common"]["ha_repo"]),
-    ]
-    salt_answers["common"] = inquirer.prompt(common_questions, theme=theme)
-    print("")
+    if answers["libvirt"]["monitor"]["enabled"]:
+        deployment["terraform"]["monitor"]["enabled"]      = answers["libvirt"]["monitor"]["enabled"]
+        deployment["terraform"]["monitor"]["source_image"] = answers["libvirt"]["monitor"]["source_image"]
+        deployment["terraform"]["monitor"]["volume_name"]  = answers["libvirt"]["monitor"]["volume_name"]
+        deployment["terraform"]["monitor"]["cpus"]         = answers["libvirt"]["monitor"]["cpus"]
+        deployment["terraform"]["monitor"]["memory"]       = answers["libvirt"]["monitor"]["memory"]
 
-
-    panel_show("Node provisioning questions")
-    node_questions = [
-        inquirer.Text("network_domain", 
-                      message="Enter the network domain for nodes",
-                      default=defaults["node"]["network_domain"]),
-    ]
-    salt_answers["node"] = inquirer.prompt(node_questions, theme=theme)
-    print("")
-
-
-    """
-    if terraform_answers["common"]["shared_storage_type"] == "iscsi":
-        panel_show("iSCSI provisioning questions")
-        iscsi_questions = [
-            inquirer.Text("network_domain", 
-                          message="Enter the network domain for iSCSI node",
-                          default=defaults["iscsi"]["network_domain"]),
-        ]
-        salt_answers["iscsi"] = inquirer.prompt(iscsi_questions, theme=theme)
-        print("")
+        deployment["salt"]["monitor"]["network_domain"] = answers["libvirt"]["monitor"]["network_domain"]
     else:
-        salt_answers["iscsi"] = {}
-    """
+        deployment["terraform"]["monitor"] = defaults["terraform"]["monitor"]
+        deployment["salt"]["monitor"] = defaults["salt"]["monitor"]
 
+    ## QDEVICE
+    deployment["terraform"]["qdevice"] = {}
+    deployment["salt"]["qdevice"] = {}
 
-    if "enabled" in terraform_answers["monitor"] and terraform_answers["monitor"]["enabled"]:
-        panel_show("Monitor provisioning questions")
-        monitor_questions = [
-            inquirer.Text("network_domain", 
-                          message="Enter the network domain for monitor node",
-                          default=defaults["monitor"]["network_domain"]),
-        ]
-        salt_answers["monitor"] = inquirer.prompt(monitor_questions, theme=theme)
-        print("")
+    if answers["libvirt"]["qdevice"]["enabled"]:
+        deployment["terraform"]["qdevice"]["enabled"]      = answers["libvirt"]["qdevice"]["enabled"]
+        deployment["terraform"]["qdevice"]["source_image"] = answers["libvirt"]["qdevice"]["source_image"]
+        deployment["terraform"]["qdevice"]["volume_name"]  = answers["libvirt"]["qdevice"]["volume_name"]
+
+        deployment["salt"]["qdevice"]["network_domain"] = answers["libvirt"]["qdevice"]["network_domain"]
+        deployment["salt"]["qdevice"]["options"]        = answers["libvirt"]["qdevice"]["options"]
     else:
-        salt_answers["monitor"] = {}
+        deployment["terraform"]["qdevice"] = defaults["terraform"]["qdevice"]
+        deployment["salt"]["qdevice"] = defaults["salt"]["qdevice"]
 
-    return salt_answers
+    return deployment
 
 #
 # Main
@@ -283,20 +409,22 @@ if __name__ == "__main__":
         defaults = yaml.load(f, Loader=yaml.FullLoader)
 
     answers = intro(theme)
-    answers["terraform"] = libvirt_terraform(defaults["terraform"], theme)
-    answers["salt"] = salt(answers["terraform"], defaults["salt"], theme)
+    if answers["provider"] == "libvirt":
+        answers["libvirt"] = libvirt_provider(defaults, theme)
     
-    #print(f"{json.dumps(answers, indent = 4)}")
+    deployment = create_from_answers(answers, defaults)
 
-    filename = f"{answers['name']}.yaml"
+    filename = f"{deployment['name']}.yaml"
     with open(filename, "w") as f:
-        yaml.dump(answers, f, indent = 4)
+        yaml.dump(deployment, f, indent = 4)
 
     print("")
     panel_show(f"All set! Run:")
     panel_show(f"    ./deploy.py create {filename}")
 
-"""Colorize text.
+
+"""
+Colorize text:
     Available text colors:
         red, green, yellow, blue, magenta, cyan, white.
     Available text highlights:
@@ -304,10 +432,10 @@ if __name__ == "__main__":
     Available attributes:
         bold, dark, underline, blink, reverse, concealed.
 
-    http://www.figlet.org/fontdb.cgi
-
-    doom
-    shadow
-    drpepper
-    smshadow
+Figlet: http://www.figlet.org/fontdb.cgi
+    Nice fonts:
+        doom
+        shadow
+        drpepper
+        smshadow
 """
