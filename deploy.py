@@ -36,6 +36,8 @@ def create(filename):
 
     # merge in environment
     env = utils.merge(defaults, user_data)
+    # sink group options
+    #env = utils.sink(env)
 
     # TODO: check existance of name and provider
 
@@ -182,7 +184,7 @@ def infrastructure(name):
     for _, (k, v) in enumerate(terraform_json.items()):
         if v["value"]:
             key, _, subkey = k.partition("_")
-            env["terraform"][key][subkey] = v["value"]
+            env[key][subkey] = v["value"]
 
     # save enriched enviroment data        
     utils.environment_save(name, **env)
@@ -198,7 +200,7 @@ def infrastructure(name):
     logging.info("[X] Copying provision files...")
 
     for role, index, name, host in utils.get_hosts_from_env(env):
-        utils.template_render(utils.path_templates(env["provider"]), "grains.j2", path, role=role, index=index, **env)
+        utils.template_render(utils.path_templates(env["provider"]), "grains.j2", path, role=role, index=index, env=env, **env)
 
         res = tasks.run(f"cd {path} && mv grains {name}.grains")
         if tasks.has_failed(res):

@@ -22,18 +22,6 @@ output "iscsi_name" {
     value = module.iscsi.output_data.hostname
 }
 
-output "monitor_private_ip" {
-    value = module.monitor.output_data.public_ip != "" ? module.monitor.output_data.private_ip : ""
-}
-
-output "monitor_public_ip" {
-    value = module.monitor.output_data.public_ip
-}
-
-output "monitor_name" {
-    value = module.monitor.output_data.hostname
-}
-
 output "qdevice_private_ip" {
     value = module.qdevice.output_data.public_ip != "" ? module.qdevice.output_data.private_ip : ""
 }

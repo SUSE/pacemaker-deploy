@@ -6,11 +6,9 @@ locals {
     base_volume_name       = var.source_image != "" ? libvirt_volume.base_image.0.name : var.volume_name != "" ? var.volume_name : ""
     node_volume_name       = var.node_source_image != "" ? "" : (var.node_volume_name != "" ? var.node_volume_name : local.base_volume_name)
     iscsi_volume_name      = var.iscsi_source_image != "" ? "" : (var.iscsi_volume_name != "" ? var.iscsi_volume_name : local.base_volume_name)
-    monitor_volume_name    = var.monitor_source_image != "" ? "" : (var.monitor_volume_name != "" ? var.monitor_volume_name : local.base_volume_name)
     qdevice_volume_name    = var.qdevice_source_image != "" ? "" : (var.qdevice_volume_name != "" ? var.qdevice_volume_name : local.base_volume_name)
 
     iscsi_private_ip       = cidrhost(var.private_ip_range, 4)
-    monitor_private_ip     = cidrhost(var.private_ip_range, 5)
     qdevice_private_ip     = cidrhost(var.private_ip_range, 6)
     node_private_ips_start = 10
     node_private_ips       = [for ip_index in range(local.node_private_ips_start, local.node_private_ips_start + var.node_count) : cidrhost(var.private_ip_range, ip_index)]
@@ -102,20 +100,6 @@ module "iscsi" {
     public_network_id     = local.public_network_id
     private_network_id    = local.private_network_id
     iscsi_private_ip      = local.iscsi_private_ip
-}
-
-module "monitor" {
-    source                = "./modules/monitor"
-    enabled               = var.monitor_enabled
-    storage_pool          = var.storage_pool
-    source_image          = var.monitor_source_image
-    volume_name           = local.monitor_volume_name
-    cpus                  = var.monitor_cpus
-    memory                = var.monitor_memory
-    public_bridge         = var.public_bridge
-    public_network_id     = local.public_network_id
-    private_network_id    = local.private_network_id
-    monitor_private_ip    = local.monitor_private_ip
 }
 
 module "qdevice" {

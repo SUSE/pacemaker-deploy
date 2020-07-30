@@ -7,14 +7,9 @@ base:
         - cluster_node.qdevice_start
 {% endif %}
 
-
     'role:iscsi':
         - match: grain
         - iscsi_server
-
-    'role:monitor':
-        - match: grain
-        - monitor
 
     'role:qdevice':
         - match: grain

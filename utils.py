@@ -2,6 +2,7 @@ import os
 import json
 import yaml
 import logging
+import copy
 
 import jinja2
 
@@ -76,7 +77,7 @@ def environment_name(deployment_name):
     """
     Returns configuration files path for a given provider
     """
-    return f"{path_deployment(deployment_name)}/environment.json"
+    return f"{path_deployment(deployment_name)}/environment.yaml"
 
 
 def environment_save(deployment_name, **env):
@@ -110,7 +111,7 @@ def template_render(src_dir, template_name, dst_dir, **env):
 
 
 #
-# Others
+# Environment file
 #
 def merge(default, update):
     if not isinstance(default, dict) or not isinstance(update, dict):
@@ -127,6 +128,32 @@ def merge(default, update):
     return default_copy
 
 
+def sink(env):
+    new_env = copy.deepcopy(env)
+
+    roles = ["node", "iscsi", "qdevice"]
+
+    for role in roles:
+        if not new_env[role]["source_image"] and not new_env[role]["volume_name"]:
+            new_env[role]["source_image"] = new_env["common"]["source_image"]
+            new_env[role]["volume_name"] = new_env["common"]["volume_name"]
+        if new_env[role]["source_image"]:
+            new_env[role]["volume_name"] = ""
+        if not new_env[role]["additional_pkgs"]:
+            new_env[role]["additional_pkgs"] = copy.deepcopy(new_env["common"]["additional_pkgs"])
+        if not new_env[role]["additional_repos"]:
+            new_env[role]["additional_repos"] = copy.deepcopy(new_env["common"]["additional_repos"])
+
+    del new_env["common"]["source_image"]
+    del new_env["common"]["volume_name"]
+    del new_env["common"]["additional_pkgs"]
+    del new_env["common"]["additional_repos"]
+
+    return new_env
+
+#
+# Others
+#
 def get_log_level(loglevel, default):
 
     if loglevel is None:
@@ -148,16 +175,16 @@ def get_hosts_from_env(env):
 
     # nodes
     role = "node"
-    for index in range(0, int(env["terraform"]["node"]["count"])):
+    for index in range(0, int(env["node"]["count"])):
         name = f"{role}{(index + 1):0>2}"
-        host = env["terraform"][role]["public_ips"][index]
+        host = env[role]["public_ips"][index]
         hosts.append( (role, index, name, host) )
 
-    # if there is a [iscsi, monitor, qdevice] device, copy salt directory and grains file
-    for role in ["iscsi", "monitor", "qdevice"]:
-        if "public_ip" in env["terraform"][role]:
+    # if there is a [iscsi, qdevice] device, copy salt directory and grains file
+    for role in ["iscsi", "qdevice"]:
+        if "public_ip" in env[role]:
             name = role
-            host = env["terraform"][role]["public_ip"]
+            host = env[role]["public_ip"]
             hosts.append( (role, 0, name, host) )
 
     return hosts

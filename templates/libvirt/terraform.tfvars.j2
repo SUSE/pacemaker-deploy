@@ -1,52 +1,43 @@
-qemu_uri = "{{ terraform.common.qemu_uri }}"
+qemu_uri = "{{ common.qemu_uri }}"
 
 #
 # Common infrastructure
 #
-storage_pool = "{{ terraform.common.storage_pool }}"
-source_image = "{{ terraform.common.source_image }}"
-volume_name = "{{ terraform.common.volume_name }}"
-private_ip_range = "{{ terraform.common.private_ip_range }}"
-public_ip_range = "{{ terraform.common.public_ip_range }}"
-public_bridge = "{{ terraform.common.public_bridge }}"
-shared_storage_type = "{{ terraform.common.shared_storage_type }}"
+storage_pool = "{{ common.storage_pool }}"
+source_image = "{{ common.source_image }}"
+volume_name = "{{ common.volume_name }}"
+private_ip_range = "{{ common.private_ip_range }}"
+public_ip_range = "{{ common.public_ip_range }}"
+public_bridge = "{{ common.public_bridge }}"
+shared_storage_type = "{{ common.shared_storage_type }}"
 
 #
 # Cluster Nodes
 #
-node_count = {{ terraform.node.count }}
-node_source_image = "{{ terraform.node.source_image }}"
-node_volume_name = "{{ terraform.node.volume_name }}"
-node_cpus = {{ terraform.node.cpus }}
-node_memory = {{ terraform.node.memory }}
-node_disk_size = {{ terraform.node.disk_size }}
+node_count = {{ node.count }}
+node_source_image = "{{ node.source_image }}"
+node_volume_name = "{{ node.volume_name }}"
+node_cpus = {{ node.cpus }}
+node_memory = {{ node.memory }}
+node_disk_size = {{ node.disk_size }}
 
 #
 # Shared disk
 #
-sbd_disk_size = {{ terraform.sbd.disk_size }}
+sbd_disk_size = {{ sbd.disk_size }}
 
 #
 # iSCSI server
 #
-iscsi_source_image = "{{ terraform.iscsi.source_image }}"
-iscsi_volume_name = "{{ terraform.iscsi.volume_name }}"
-iscsi_cpus = {{ terraform.iscsi.cpus }}
-iscsi_memory = {{ terraform.iscsi.memory }}
-iscsi_disk_size = {{ terraform.iscsi.disk_size }}
-
-#
-# Monitor
-#
-monitor_enabled = {{ jsonify(terraform.monitor.enabled) }}
-monitor_source_image = "{{ terraform.monitor.source_image }}"
-monitor_volume_name = "{{ terraform.monitor.volume_name }}"
-monitor_cpus = {{ terraform.monitor.cpus }}
-monitor_memory = {{ terraform.monitor.memory }}
+iscsi_source_image = "{{ iscsi.source_image }}"
+iscsi_volume_name = "{{ iscsi.volume_name }}"
+iscsi_cpus = {{ iscsi.cpus }}
+iscsi_memory = {{ iscsi.memory }}
+iscsi_disk_size = {{ iscsi.disk_size }}
 
 #
 # QDevice
 #
-qdevice_enabled = {{ jsonify(terraform.qdevice.enabled) }}
-qdevice_source_image = "{{ terraform.qdevice.source_image }}"
-qdevice_volume_name = "{{ terraform.qdevice.volume_name }}"
+qdevice_enabled = {{ jsonify(qdevice.enabled) }}
+qdevice_source_image = "{{ qdevice.source_image }}"
+qdevice_volume_name = "{{ qdevice.volume_name }}"

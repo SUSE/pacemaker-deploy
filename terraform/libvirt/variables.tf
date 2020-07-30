@@ -115,34 +115,6 @@ variable "iscsi_disk_size" {
 
 
 #
-# Monitor
-#
-variable "monitor_enabled" {
-    description = "Enable the host to be monitored by exporters, e.g node_exporter"
-    type        = bool
-}
-
-variable "monitor_source_image" {
-    description = "Source image used to boot the monitor machines (qcow2 format). It's possible to specify the path to a local (relative to the machine running the terraform command) image or a remote one. Remote images have to be specified using HTTP(S) urls for now"
-    type        = string
-}
-
-variable "monitor_volume_name" {
-    description = "Already existing volume name used to boot the monitor machines. It must be in the same storage pool. It's only used if monitoring_source_image is not provided"
-    type        = string
-}
-
-variable "monitor_cpus" {
-    description = "Number of CPUs for the monitor machine"
-    type        = number
-}
-
-variable "monitor_memory" {
-    description = "Memory (in MBs) for the monitor machine"
-    type        = number
-}
-
-#
 # QDevice
 #
 variable "qdevice_enabled" {
