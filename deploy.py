@@ -3,6 +3,8 @@
 import os
 import shutil
 import threading
+import concurrent.futures
+import functools
 import logging
 import time
 import json
@@ -37,7 +39,7 @@ def create(filename):
     # merge in environment
     env = utils.merge(defaults, user_data)
     # sink group options
-    #env = utils.sink(env)
+    env = utils.sink(env)
 
     # TODO: check existance of name and provider
 
@@ -50,7 +52,7 @@ def create(filename):
     if tasks.has_failed(res):
         logging.critical(f"Phase 'prepare' failed")
         return res
-
+    
     res = infrastructure(name)
     if tasks.has_failed(res):
         logging.critical(f"Phase 'infrastructure' failed")
@@ -110,7 +112,7 @@ def prepare(**env):
 
     # save the environment
     utils.environment_save(name, **env)
-    
+
     logging.info("OK\n")
 
     return tasks.success()
@@ -364,31 +366,28 @@ def provision(name):
     group1 = [ host for host in hosts if host[0] != "node" or  host[2] == "node01"]
     group2 = [ host for host in hosts if host[0] == "node" and host[2] != "node01"]
 
-    provision_tasks1  = [threading.Thread(target=provision_task, args=(name, host, phases)) for role, index, name, host in group1]
-    provision_tasks2  = [threading.Thread(target=provision_task, args=(name, host, ["install", "config"])) for role, index, name, host in group2]
-    provision_tasks3  = [threading.Thread(target=provision_task, args=(name, host, ["start"])) for role, index, name, host in group2]
+    provision_tasks1  = [(provision_task, name, host, phases)                for role, index, name, host in group1]
+    provision_tasks2  = [(provision_task, name, host, ["install", "config"]) for role, index, name, host in group2]
+    provision_tasks3  = [(provision_task, name, host, ["start"])             for role, index, name, host in group2]
 
-    logging.info(f"Running first stage")
+    stage1 = provision_tasks1 + provision_tasks2
+    stage2 = provision_tasks3
 
-    for task in provision_tasks1:
-        task.start()
+    stages = [stage1, stage2]
 
-    for task in provision_tasks2:
-        task.start()
+    for stage in stages:
+        logging.info(f"Running stage")
+        results = []
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = []
+            for task in stage:
+                futures.append( executor.submit(task[0], task[1], task[2], task[3]) )
+    
+            for future in futures:
+                results.append( future.result() )
 
-    for task in provision_tasks1:
-        task.join()
-
-    for task in provision_tasks2:
-        task.join()
-
-    logging.info(f"Running second stage")
-
-    for task in provision_tasks3:
-        task.start()
-
-    for task in provision_tasks3:
-        task.join()
+        if functools.reduce(lambda x, y: x or tasks.get_return_code(y) != 0, results, False):
+            break
 
     with clock_task_mutex:        
         clock_task_active = False
@@ -427,15 +426,19 @@ def destroy(name):
     #
     logging.info("[X] Executing on destroy actions on nodes...")
 
-    hosts = utils.get_hosts_from_env(env)
+    try:
+        hosts = utils.get_hosts_from_env(env)
 
-    destroy_tasks  = [threading.Thread(target=destroy_task, args=(name, host)) for role, index, name, host in hosts]
+        destroy_tasks  = [threading.Thread(target=destroy_task, args=(name, host)) for role, index, name, host in hosts]
 
-    for task in destroy_tasks:
-        task.start()
+        for task in destroy_tasks:
+            task.start()
 
-    for task in destroy_tasks:
-        task.join()
+        for task in destroy_tasks:
+            task.join()
+
+    except:
+        logging.info("No actions performed...")
 
     logging.info("OK\n")
 
@@ -444,9 +447,12 @@ def destroy(name):
     #
     logging.info("[X] Eliminating server from known_hosts...")
 
-    for role, index, name, host in hosts:
-        tasks.run(f"ssh-keygen -R {host} -f ~/.ssh/known_hosts")
-        logging.info(f"Eliminated from known_hosts [{name}={host}]")
+    try:
+        for role, index, name, host in hosts:
+            tasks.run(f"ssh-keygen -R {host} -f ~/.ssh/known_hosts")
+            logging.info(f"Eliminated from known_hosts [{name}={host}]")
+    except:
+        logging.info("No actions performed...")
 
     logging.info("OK\n")
 

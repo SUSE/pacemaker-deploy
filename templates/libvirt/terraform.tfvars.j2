@@ -4,8 +4,6 @@ qemu_uri = "{{ common.qemu_uri }}"
 # Common infrastructure
 #
 storage_pool = "{{ common.storage_pool }}"
-source_image = "{{ common.source_image }}"
-volume_name = "{{ common.volume_name }}"
 private_ip_range = "{{ common.private_ip_range }}"
 public_ip_range = "{{ common.public_ip_range }}"
 public_bridge = "{{ common.public_bridge }}"
@@ -19,12 +17,12 @@ node_source_image = "{{ node.source_image }}"
 node_volume_name = "{{ node.volume_name }}"
 node_cpus = {{ node.cpus }}
 node_memory = {{ node.memory }}
-node_disk_size = {{ node.disk_size }}
+node_disk_size = {{ node.disk_size * 1024 * 1024 * 1024 }}
 
 #
 # Shared disk
 #
-sbd_disk_size = {{ sbd.disk_size }}
+sbd_disk_size = {{ sbd.disk_size  * 1024 * 1024 * 1024}}
 
 #
 # iSCSI server
@@ -33,7 +31,7 @@ iscsi_source_image = "{{ iscsi.source_image }}"
 iscsi_volume_name = "{{ iscsi.volume_name }}"
 iscsi_cpus = {{ iscsi.cpus }}
 iscsi_memory = {{ iscsi.memory }}
-iscsi_disk_size = {{ iscsi.disk_size }}
+iscsi_disk_size = {{ iscsi.disk_size  * 1024 * 1024 * 1024}}
 
 #
 # QDevice

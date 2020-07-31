@@ -3,8 +3,6 @@ provider: ""  # provider. Should be one of libvirt, azure, aws or gcp
 
 common:                                 # generic infrastructure settings
     qemu_uri: qemu:///system            # qemu uri for the KVM hypervisor
-    source_image: ""                    # url for the image of the OS
-    volume_name: ""                     # alternatively, in KVM, a volume can be specified
     storage_pool: default               # the pool where the volume images are stored
     private_ip_range: 192.168.10.0/24   # private network range
     public_ip_range: 10.10.10.0/24      # public network range (NAT network)
@@ -12,42 +10,28 @@ common:                                 # generic infrastructure settings
     shared_storage_type: shared-disk    # fencing mechanism, can be shared-disk or iscsi
     reg_email: ""
     reg_code: ""
-    ha_repo: http://download.opensuse.org/repositories/network:ha-clustering:sap-deployments:devel
+    network_domain: local
+
+    source_image: ""                    # url for the image of the OS
+    volume_name: ""                     # alternatively, in KVM, a volume can be specified
+    additional_repos: 
+        ha: http://download.opensuse.org/repositories/network:ha-clustering:sap-deployments:devel
     additional_pkgs: []
-    additional_repos: {}
 
-
-node:                        # cluster nodes specific options
-    source_image: ""         # overrides common/source_image
-    volume_name: ""          # overrides common/volume_name
-    count: 2                 # number of cluster nodes
     cpus: 2                  # number of cpus per node
     memory: 1024             # memory in MiB
-    disk_size: 68719476736   # disk size in bytes
-    network_domain: local
-    additional_pkgs: []
-    additional_repos: {}
+    disk_size: 1             # size of the data disk in GB
 
-sbd:
-    disk_size: 104857600     # size of the shared-disk if used 
+node:                        # cluster nodes specific options
+    count: 2                 # number of cluster nodes
+    disk_size: 64            # disk size in GB
 
 iscsi:                       # iscsi server specific options
-    source_image: ""         # overrides common/source_image
-    volume_name: ""          # overrides common/volumne_name
-    cpus: 2                  # number of cpus
-    memory: 1024             # memory size in MiB
-    disk_size: 1073741824    # disk size in bytes
-    network_domain: local
-    additional_pkgs: []
-    additional_repos: {}
     device: "/dev/vdb"       # iSCSI device in server
     disks: 0                 # Number of partitions attach to iscsi server. 0 means all
 
+sbd: {}
+
 qdevice:                     # monitor specific config
     enabled: false           # indicates if qdevice is used
-    source_image: ""         # overrides common/source_image
-    volume_name: ""          # overrides common/volume_name
-    network_domain: local
-    additional_pkgs: []
-    additional_repos: {}
     options: ""

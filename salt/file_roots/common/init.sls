@@ -3,7 +3,6 @@ include:
     - common.registration
     - common.repos
     - common.update
-    - common.ha_repos
     - common.additional_repos
 {% if grains['shared_storage_type'] == 'iscsi' %}
     - common.iscsi

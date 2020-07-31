@@ -3,10 +3,9 @@ provider "libvirt" {
 }
 
 locals {
-    base_volume_name       = var.source_image != "" ? libvirt_volume.base_image.0.name : var.volume_name != "" ? var.volume_name : ""
-    node_volume_name       = var.node_source_image != "" ? "" : (var.node_volume_name != "" ? var.node_volume_name : local.base_volume_name)
-    iscsi_volume_name      = var.iscsi_source_image != "" ? "" : (var.iscsi_volume_name != "" ? var.iscsi_volume_name : local.base_volume_name)
-    qdevice_volume_name    = var.qdevice_source_image != "" ? "" : (var.qdevice_volume_name != "" ? var.qdevice_volume_name : local.base_volume_name)
+    node_volume_name       = var.node_source_image != "" ? "" : var.node_volume_name
+    iscsi_volume_name      = var.iscsi_source_image != "" ? "" : var.iscsi_volume_name
+    qdevice_volume_name    = var.qdevice_source_image != "" ? "" : var.qdevice_volume_name
 
     iscsi_private_ip       = cidrhost(var.private_ip_range, 4)
     qdevice_private_ip     = cidrhost(var.private_ip_range, 6)
@@ -15,16 +14,6 @@ locals {
 
     public_network_id    = var.public_bridge == "" && var.public_ip_range != "" ? libvirt_network.public_network.0.id : ""
     private_network_id   = libvirt_network.private_network.0.id
-}
-
-#
-# Images
-#
-resource "libvirt_volume" "base_image" {
-    count  = var.source_image != "" ? 1 : 0
-    name   = "${terraform.workspace}-base-image"
-    pool   = var.storage_pool
-    source = var.source_image
 }
 
 #

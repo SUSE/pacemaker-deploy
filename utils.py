@@ -131,23 +131,30 @@ def merge(default, update):
 def sink(env):
     new_env = copy.deepcopy(env)
 
+    sinkable_props = ["additional_repos", "additional_pkgs", "cpus", "memory", "disk_size"]
+
     roles = ["node", "iscsi", "qdevice"]
 
     for role in roles:
-        if not new_env[role]["source_image"] and not new_env[role]["volume_name"]:
+        # images
+        if "source_image" not in new_env[role] and "volume_name" not in new_env[role]:
             new_env[role]["source_image"] = new_env["common"]["source_image"]
             new_env[role]["volume_name"] = new_env["common"]["volume_name"]
         if new_env[role]["source_image"]:
             new_env[role]["volume_name"] = ""
-        if not new_env[role]["additional_pkgs"]:
-            new_env[role]["additional_pkgs"] = copy.deepcopy(new_env["common"]["additional_pkgs"])
-        if not new_env[role]["additional_repos"]:
-            new_env[role]["additional_repos"] = copy.deepcopy(new_env["common"]["additional_repos"])
+
+        # rest of properties
+        for prop in sinkable_props:
+            if prop not in new_env[role]:
+                new_env[role][prop] = copy.deepcopy(new_env["common"][prop])
+
+    if "disk_size" not in new_env["sbd"]:
+        new_env["sbd"]["disk_size"] = copy.deepcopy(new_env["common"]["disk_size"])
 
     del new_env["common"]["source_image"]
     del new_env["common"]["volume_name"]
-    del new_env["common"]["additional_pkgs"]
-    del new_env["common"]["additional_repos"]
+    for prop in sinkable_props:
+        del new_env["common"][prop]
 
     return new_env
 
