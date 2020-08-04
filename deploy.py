@@ -86,7 +86,7 @@ def infrastructure_render(name):
     #
     # Check deployment does exist
     #
-    res, path, env = utils.deployment_verify(name)
+    res, env = utils.deployment_verify(name)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
         return res
@@ -132,7 +132,7 @@ def infrastructure_execute(name):
     #
     # Check deployment does exist
     #
-    res, path, env = utils.deployment_verify(name)
+    res, env = utils.deployment_verify(name)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
         return res
@@ -210,7 +210,7 @@ def provision_render(name):
     #
     # Check deployment does exist
     #
-    res, path, env = utils.deployment_verify(name)
+    res, env = utils.deployment_verify(name)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
         return res
@@ -229,7 +229,7 @@ def provision_render(name):
 
     path_provision = utils.path_provision(env["provider"])
 
-    for role, index, name, host in utils.get_hosts_from_env(env):
+    for role, index, name, _ in utils.get_hosts_from_env(env):
         utils.template_render(path_provision, "grains.j2", path_render, f"{name}.grains", role=role, index=index, env=env, **env)
 
         logging.info(f"Rendered {name}.grains")
@@ -257,7 +257,7 @@ def upload(name):
     #
     # Check deployment does exist
     #
-    res, path, env = utils.deployment_verify(name)
+    res, env = utils.deployment_verify(name)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
         return res
@@ -269,7 +269,7 @@ def upload(name):
     #
     logging.info("[X] Uploading files...")
 
-    for role, index, name, host in utils.get_hosts_from_env(env):
+    for role, _, name, host in utils.get_hosts_from_env(env):
         command = f"mkdir /tmp/salt"
         res = ssh.run("root", "linux", host, command)
         if tasks.has_failed(res):
@@ -287,7 +287,7 @@ def upload(name):
     uploads = []
 
     # copy salt directory and grains files to machines
-    for role, index, name, host in utils.get_hosts_from_env(env):
+    for role, _, name, host in utils.get_hosts_from_env(env):
         uploads.append( (name, host, f"{utils.path_provision(env['provider'])}/provision.sh", f"/tmp/salt/") )
         uploads.append( (name, host, f"{utils.path_provision(env['provider'])}/minion", "/tmp/salt/") )
         uploads.append( (name, host, f"{path_provision}/{name}.grains", "/tmp/salt/grains") )
@@ -383,7 +383,7 @@ def provision_execute(name):
     #
     # Check deployment does exist
     #
-    res, path, env = utils.deployment_verify(name)
+    res, env = utils.deployment_verify(name)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
         return res
@@ -408,43 +408,31 @@ def provision_execute(name):
    
     clock.start()     
 
-    if not "qdevice" in env or not env["qdevice"]["enabled"]:
-        provision_tasks  = [(provision_task, name, host, phases) for role, index, name, host in hosts]
+    group1 = [ host for host in hosts if host[0] != "node" or "node01" in host[2]]
+    group2 = [ host for host in hosts if host[0] == "node" and "node01" not in host[2]]
 
+    provision_tasks1  = [(provision_task, name, host, phases)                for role, index, name, host in group1]
+    provision_tasks2  = [(provision_task, name, host, ["install", "config"]) for role, index, name, host in group2]
+    provision_tasks3  = [(provision_task, name, host, ["start"])             for role, index, name, host in group2]
+
+    stage1 = provision_tasks1 + provision_tasks2
+    stage2 = provision_tasks3
+
+    stages = [stage1, stage2]
+
+    for stage in stages:
+        logging.info(f"Running stage")
         results = []
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
-            for task in provision_tasks:
+            for task in stage:
                 futures.append( executor.submit(task[0], task[1], task[2], task[3]) )
     
             for future in futures:
                 results.append( future.result() )
-    else:
-        group1 = [ host for host in hosts if host[0] != "node" or "node01" in host[2]]
-        group2 = [ host for host in hosts if host[0] == "node" and "node01" not in host[2]]
 
-        provision_tasks1  = [(provision_task, name, host, phases)                for role, index, name, host in group1]
-        provision_tasks2  = [(provision_task, name, host, ["install", "config"]) for role, index, name, host in group2]
-        provision_tasks3  = [(provision_task, name, host, ["start"])             for role, index, name, host in group2]
-
-        stage1 = provision_tasks1 + provision_tasks2
-        stage2 = provision_tasks3
-
-        stages = [stage1, stage2]
-
-        for stage in stages:
-            logging.info(f"Running stage")
-            results = []
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                futures = []
-                for task in stage:
-                    futures.append( executor.submit(task[0], task[1], task[2], task[3]) )
-        
-                for future in futures:
-                    results.append( future.result() )
-
-            if functools.reduce(lambda x, y: x or tasks.get_return_code(y) != 0, results, False):
-                break
+        if functools.reduce(lambda x, y: x or tasks.get_return_code(y) != 0, results, False):
+            break
     
     with clock_task_mutex:        
         clock_task_active = False
@@ -494,7 +482,7 @@ def create_provision(filename):
     
     res = provision_render(name)
     if tasks.has_failed(res):
-        logging.critical(f"Phase 'upload' failed")
+        logging.critical(f"Phase 'provision_render' failed")
         return res
 
     res = upload(name)
@@ -504,7 +492,7 @@ def create_provision(filename):
 
     res = provision_execute(name)
     if tasks.has_failed(res):
-        logging.critical(f"Phase 'provision' failed")
+        logging.critical(f"Phase 'provision_execute' failed")
         return res
 
     return tasks.success()
@@ -544,10 +532,12 @@ def destroy(filename):
     #
     # Check deployment does exist
     #
-    res, path, env = utils.deployment_verify(name)
+    res, env = utils.deployment_verify(name)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
         return res
+
+    path = utils.path_deployment(env["name"])
 
     #
     # Execute on destroy actions on nodes
@@ -576,7 +566,7 @@ def destroy(filename):
     logging.info("[X] Eliminating server from known_hosts...")
 
     try:
-        for role, index, name, host in hosts:
+        for _, _, name, host in hosts:
             tasks.run(f"ssh-keygen -R {host} -f ~/.ssh/known_hosts")
             logging.info(f"Eliminated from known_hosts [{name}={host}]")
     except:
@@ -672,22 +662,22 @@ Examples:
         if arguments["create"]:
             deployment_file = arguments["DEPLOYMENT_FILE"]
             res = create_all(deployment_file)
-            return
+            return res
 
         if arguments["infrastructure"]:
             deployment_file = arguments["DEPLOYMENT_FILE"]
             res = create_infrastructure(deployment_file)
-            return
+            return res
 
         if arguments["provision"]:
             deployment_file = arguments["DEPLOYMENT_FILE"]
             res = create_provision(deployment_file)
-            return
+            return res
 
         if arguments["destroy"]:
             deployment_file = arguments["DEPLOYMENT_FILE"]
             res = destroy(deployment_file)
-            return
+            return res
 
     from docopt import docopt
     arguments = docopt(main.__doc__, version='Pacemaker Deploy 0.1.0')

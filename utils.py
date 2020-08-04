@@ -60,16 +60,14 @@ def deployment_verify(deployment_name):
     Check deployment does exist
     """
     if not deployment_exists(deployment_name):
-        return (tasks.failure(f"Deployment {deployment_name} does not exist"), "", {})
+        return (tasks.failure(f"Deployment {deployment_name} does not exist"), {})
 
-    path = path_deployment(deployment_name)
-    
     try:
         env = environment_load(deployment_name)
     except Exception as e:
-        return (tasks.failure(f"Inexistant environment file under deployment {deployment_name} = {e.args}"), "", {})
+        return (tasks.failure(f"Inexistant environment file under deployment {deployment_name} = {e.args}"), {})
     
-    return (tasks.success(), path, env)
+    return (tasks.success(), env)
 
 
 #

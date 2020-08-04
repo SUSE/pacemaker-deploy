@@ -31,7 +31,7 @@ sbd_disk_device: "/dev/sdb"
 iscsi_ip: "{{ iscsi.private_ip }}"
 {%- endif %}
 
-qdevice_enabled: {{ jsonify(qdevice.enabled) if "qdevice" in env }}
+qdevice_enabled: {{ jsonify(qdevice.enabled) if "qdevice" in env else jsonify(false) }}
 qdevice_ip: "{{  qdevice.private_ip if "qdevice" in env }}"
 {%- endif %}
 
