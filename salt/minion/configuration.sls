@@ -1,7 +1,7 @@
 copy_grains:
     file.copy:
         - name: /etc/salt/grains
-        - source: /tmp/grains
+        - source: /tmp/salt/grains
 
 backup_salt_configuration:
     file.copy:

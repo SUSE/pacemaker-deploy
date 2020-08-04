@@ -1,0 +1,9 @@
+resource "libvirt_volume" "shared_disk" {
+    name  = "{{ name }}-sbd.raw"
+    pool  = local.storage_pool
+    size  = {{ sbd.disk_size * 1024 * 1024 * 1024 }}
+
+    xml {
+        xslt = file("raw.xsl")
+    }
+}

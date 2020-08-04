@@ -18,23 +18,20 @@ def path_config():
     """
     return f"./config"
 
-def path_templates(provider_name):
-    """
-    Returns template files path for a given provider
-    """
-    return f"./templates/{provider_name}"
-
-
 def path_infrastructure(provider_name):
     """
     Returns terraform files path for a given provider
     """
     return f"./terraform/{provider_name}"
 
+def path_provision(provider_name):
+    """
+    Returns salt files path
+    """
+    return f"./salt"
 
 def path_deployment_base():
     return "./deployed"
-
 
 def path_deployment(deployment_name):
     """
@@ -42,6 +39,11 @@ def path_deployment(deployment_name):
     """
     return f"{path_deployment_base()}/{deployment_name}"
 
+def path_deployment_infrastructure(deployment_name):
+    return f"{path_deployment(deployment_name)}/terraform"
+
+def path_deployment_provision(deployment_name):
+    return f"{path_deployment(deployment_name)}/salt"
 
 #
 # Deployment related
@@ -94,15 +96,15 @@ def environment_load(deployment_name):
 #
 # Jinja templates
 #
-def template_render(src_dir, template_name, dst_dir, **env):
+def template_render(src_dir, template_name, dst_dir, output_name, **env):
     input_path = f"{src_dir}/{template_name}"
     
     with open(input_path, "r") as input_file:
         template = jinja2.Template(input_file.read())
-    
+
     template.globals = { "jsonify": json.dumps }
     
-    output_name = ".".join( template_name.split(".")[0:-1:] )
+    #output_name = ".".join( template_name.split(".")[0:-1:] )
     
     output_path = f"{dst_dir}/{output_name}"
 
@@ -128,33 +130,60 @@ def merge(default, update):
     return default_copy
 
 
+def sink_entry(parent, son, props):
+    # images
+    if "source_image" in props and "volume_name" in props:
+        if "source_image" not in son and "volume_name" not in son:
+            son["source_image"] = copy.deepcopy(parent["source_image"])
+            son["volume_name"] = copy.deepcopy(parent["volume_name"])
+        if "source_image" in son and son["source_image"] != "":
+            son["volume_name"] = ""
+
+    # rest of properties
+    for prop in props:
+        if prop not in ["source_image", "volume_name"] and prop not in son:
+            son[prop] = copy.deepcopy(parent[prop])
+
+def delete_from_parent(parent, props):
+    for prop in props:
+        del parent[prop]
+
 def sink(env):
     new_env = copy.deepcopy(env)
 
-    sinkable_props = ["additional_repos", "additional_pkgs", "cpus", "memory", "disk_size"]
+    # create all node subkeys
+    for index in range(new_env["node"]["count"]):
+        value = index + 1
+        if value not in new_env["node"]:
+            new_env["node"][value] = {}
 
-    roles = ["node", "iscsi", "qdevice"]
-
-    for role in roles:
-        # images
-        if "source_image" not in new_env[role] and "volume_name" not in new_env[role]:
-            new_env[role]["source_image"] = new_env["common"]["source_image"]
-            new_env[role]["volume_name"] = new_env["common"]["volume_name"]
-        if new_env[role]["source_image"]:
-            new_env[role]["volume_name"] = ""
-
-        # rest of properties
-        for prop in sinkable_props:
-            if prop not in new_env[role]:
-                new_env[role][prop] = copy.deepcopy(new_env["common"][prop])
-
+    # sink sbd.disk_size as its a special case
     if "disk_size" not in new_env["sbd"]:
         new_env["sbd"]["disk_size"] = copy.deepcopy(new_env["common"]["disk_size"])
 
-    del new_env["common"]["source_image"]
-    del new_env["common"]["volume_name"]
-    for prop in sinkable_props:
-        del new_env["common"][prop]
+    # sink all those properties
+    sinkable_props = ["source_image", "volume_name", "additional_repos", "additional_pkgs", "cpus", "memory", "disk_size"]
+
+    # first from common to the rest of roles
+    for role in ["node", "iscsi", "qdevice"]:
+        sink_entry(new_env["common"], new_env[role], sinkable_props)
+
+    delete_from_parent(new_env["common"], sinkable_props)
+
+    # then from node role to specific node id
+    for index in range(new_env["node"]["count"]):
+        sink_entry(new_env["node"], new_env["node"][index + 1], sinkable_props)
+
+    delete_from_parent(new_env["node"], sinkable_props)
+
+    # erase sbd or iscsi entry
+    if new_env["common"]["shared_storage_type"] == "iscsi":
+        del new_env["sbd"]
+    else:
+        del new_env["iscsi"]
+    
+    if not new_env["qdevice"]["enabled"]:
+        del new_env["qdevice"]
 
     return new_env
 
@@ -183,14 +212,14 @@ def get_hosts_from_env(env):
     # nodes
     role = "node"
     for index in range(0, int(env["node"]["count"])):
-        name = f"{role}{(index + 1):0>2}"
-        host = env[role]["public_ips"][index]
-        hosts.append( (role, index, name, host) )
+        name = env[role][index + 1]["name"]
+        host = env[role][index + 1]["public_ip"]
+        hosts.append( (role, index + 1, name, host) )
 
     # if there is a [iscsi, qdevice] device, copy salt directory and grains file
     for role in ["iscsi", "qdevice"]:
-        if "public_ip" in env[role]:
-            name = role
+        if role in env and "public_ip" in env[role]:
+            name = env[role]["name"]
             host = env[role]["public_ip"]
             hosts.append( (role, 0, name, host) )
 

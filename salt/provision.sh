@@ -66,14 +66,14 @@ install () {
     #mv /tmp/salt /root || true
 
     # Get registration code
-    reg_code=$(get_grain reg_code /tmp/grains)
+    reg_code=$(get_grain reg_code /tmp/salt/grains)
     # Check if salt-call is installed
     which salt-call > /dev/null 2>&1 && salt_installed=1
 
     # Workaround for the cases where the cloud providers are coming without repositories
     # https://www.suse.com/support/kb/doc/?id=7022311
     # Check if the deployment is executed in a cloud provider
-    [[ "$(get_grain provider /tmp/grains)" =~ aws|azure|gcp ]] && cloud=1
+    [[ "$(get_grain provider /tmp/salt/grains)" =~ aws|azure|gcp ]] && cloud=1
     if [[ ${cloud} == 1 && "${reg_code}" == "" ]]; then
         zypper lr || sudo /usr/sbin/registercloudguest --force-new
     fi

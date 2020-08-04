@@ -1,0 +1,67 @@
+provider: {{ provider }}
+role: {{ role }}
+cluster_name: "{{ name }}-cluster"
+
+
+## COMMON ##
+shared_storage_type: "{{ common.shared_storage_type }}"
+reg_email: "{{ common.reg_email }}"
+reg_code: "{{ common.reg_code }}"
+reg_additional_modules: {}
+network_domain: "{{ common.network_domain }}"
+authorized_keys: [] ##[ "key" ]
+
+{% if role == "node" %}
+## NODE ##
+init_node: "{{ node[1].name }}"
+host: "{{ node[index].name }}"
+host_ip: "{{ node[index].private_ip }}"
+host_ips:
+{%- for k in node if not k == 'count' %}
+    {{ node[k].name }}: {{ node[k].private_ip }}
+{%- endfor %}
+additional_pkgs: {{ node[index].additional_pkgs }}
+additional_repos: {{ node[index].additional_repos }}
+
+sbd_disk_index: 1
+{%- if common.shared_storage_type == "shared-disk" %}
+sbd_disk_device: "/dev/vdb"
+{% else %}
+sbd_disk_device: "/dev/sdb"
+iscsi_ip: "{{ iscsi.private_ip }}"
+{%- endif %}
+
+qdevice_enabled: {{ jsonify(qdevice.enabled) if "qdevice" in env }}
+qdevice_ip: "{{  qdevice.private_ip if "qdevice" in env }}"
+{%- endif %}
+
+{%- if role == "iscsi" %}
+## ISCSI ##
+host: "{{ iscsi.name }}"
+host_ip: "{{ iscsi.private_ip }}"
+additional_pkgs: {{ iscsi.additional_pkgs }}
+additional_repos: {{ iscsi.additional_repos }}
+iscsi_ip: "{{ iscsi.private_ip }}"
+iscsi_device: "{{ iscsi.device }}"
+iscsi_disks: {{ iscsi.disks }}
+partitions:
+  1:
+    start: 1
+    end: 33%
+  2:
+    start: 33%
+    end: 67%
+  3:
+    start: 67%
+    end: 100%
+{%- endif %}
+
+
+{%- if role == "qdevice" %}
+## QDEVICE ##
+host: "{{ qdevice.name }}"
+host_ip: "{{ qdevice.private_ip }}"
+additional_pkgs: {{ qdevice.additional_pkgs }}
+additional_repos: {{ qdevice.additional_repos }}
+qdevice_options: "{{ qdevice.options }}"
+{%- endif %}

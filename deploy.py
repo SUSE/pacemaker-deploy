@@ -16,14 +16,10 @@ import ssh
 import utils
 
 
-def create(filename):
-    """
-    Creates a cluster based on the specification file.
-    """
+def read_deployment_file(filename):
     #
     # Load environment from files
     #
-
     # user provided data
     try:
         with open(filename, "r") as f:
@@ -41,34 +37,7 @@ def create(filename):
     # sink group options
     env = utils.sink(env)
 
-    # TODO: check existance of name and provider
-
-    name = env["name"]
-    
-    #
-    # Run phases in sequence
-    #
-    res = prepare(**env)
-    if tasks.has_failed(res):
-        logging.critical(f"Phase 'prepare' failed")
-        return res
-    
-    res = infrastructure(name)
-    if tasks.has_failed(res):
-        logging.critical(f"Phase 'infrastructure' failed")
-        return res
-
-    res = upload(name)
-    if tasks.has_failed(res):
-        logging.critical(f"Phase 'upload' failed")
-        return res
-
-    res = provision(name)
-    if tasks.has_failed(res):
-        logging.critical(f"Phase 'provision' failed")
-        return res
-
-    return tasks.success()
+    return env
 
 
 def prepare(**env):
@@ -94,21 +63,11 @@ def prepare(**env):
     logging.info(f"[X] Environment:\n{json.dumps(env, indent = 4)}\n")
     
     #
-    # Copy infrastructure files
+    # Create deployment directory
     #
-    logging.info("[X] Copying infrastructure files...")
+    logging.info("[X] Creating deployment directory...")
 
-    # terraform files
-    shutil.copytree(utils.path_infrastructure(env["provider"]), path)
-
-    logging.info(f"Copied tree [{utils.path_infrastructure(env['provider'])}] -> [{path}]")
-
-    # render terraform input variables from environment
-    utils.template_render(utils.path_templates(env["provider"]), "terraform.tfvars.j2", path, **env)
-
-    logging.info("Rendered terraform.tfvars")
-    with open(f"{path}/terraform.tfvars", "r") as f:
-        logging.debug(f"{f.read()}")
+    os.mkdir(path)
 
     # save the environment
     utils.environment_save(name, **env)
@@ -118,7 +77,55 @@ def prepare(**env):
     return tasks.success()
 
 
-def infrastructure(name):
+
+def infrastructure_render(name):
+    """
+    Render infrastructure deployment files
+    """
+
+    #
+    # Check deployment does exist
+    #
+    res, path, env = utils.deployment_verify(name)
+    if tasks.has_failed(res):
+        logging.critical(tasks.get_stderr(res))
+        return res
+
+    #
+    # Render infrastructure files
+    #
+    logging.info("[X] Rendering infrastructure files...")
+
+    path_render = utils.path_deployment_infrastructure(env["name"])
+    
+    os.mkdir(path_render)
+
+    path_infrastructure = utils.path_infrastructure(env["provider"])
+
+    utils.template_render(path_infrastructure, "main.tf.j2", path_render, "main.tf", **env)
+    
+    for index in range(0, int(env["node"]["count"])):
+        utils.template_render(path_infrastructure, "node.tf.j2", path_render, f"node{(index + 1):0>2}.tf", index = index + 1, **env)
+
+    shutil.copy(path_infrastructure + "/node.xsl", path_render)
+
+    if env["common"]["shared_storage_type"] == "iscsi":
+        utils.template_render(path_infrastructure, "iscsi.tf.j2", path_render, "iscsi.tf", **env)
+
+    if env["common"]["shared_storage_type"] == "shared-disk":
+        utils.template_render(path_infrastructure, "sbd.tf.j2", path_render, "sbd.tf", **env)
+        shutil.copy(path_infrastructure + "/raw.xsl", path_render)
+
+    if "qdevice" in env and env["qdevice"]["enabled"]:
+        utils.template_render(path_infrastructure, "qdevice.tf.j2", path_render, "qdevice.tf", **env)
+    
+
+    logging.info("OK\n")
+
+    return tasks.success()
+
+
+def infrastructure_execute(name):
     """
     Create infrastructure for a deployment.
     """
@@ -130,6 +137,8 @@ def infrastructure(name):
         logging.critical(tasks.get_stderr(res))
         return res
 
+    path_infrastructure = utils.path_deployment_infrastructure(env["name"])
+
     #
     # Create infrastructure
     #
@@ -137,25 +146,16 @@ def infrastructure(name):
 
     # init
     logging.info("Initializing Terraform")
-    res = terraform.init(path)
+    res = terraform.init(path_infrastructure)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
         return res
     else:
         logging.debug(tasks.get_stdout(res))
 
-    # switch to workspace
-    logging.info(f"Switching to workspace {env['name']}")
-    res = terraform.workspace(path, env["name"])
-    if tasks.has_failed(res):
-        logging.error(tasks.get_stderr(res))
-        return res
-    else:
-        logging.debug(tasks.get_stdout(res))
-
     # apply
     logging.info(f"Executing plan")
-    res = terraform.apply(path)
+    res = terraform.apply(path_infrastructure)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
         return res
@@ -171,7 +171,7 @@ def infrastructure(name):
 
     # capture output
     logging.info(f"Capturing output")
-    res = terraform.output(path)
+    res = terraform.output(path_infrastructure)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
         return res
@@ -186,7 +186,11 @@ def infrastructure(name):
     for _, (k, v) in enumerate(terraform_json.items()):
         if v["value"]:
             key, _, subkey = k.partition("_")
-            env[key][subkey] = v["value"]
+            if "node" in key:
+                key, _, index = key.partition("0")
+                env[key][int(index)][subkey] = v["value"]
+            else:
+                env[key][subkey] = v["value"]
 
     # save enriched enviroment data        
     utils.environment_save(name, **env)
@@ -196,21 +200,40 @@ def infrastructure(name):
 
     logging.info("OK\n")
     
+    return tasks.success()
+
+
+def provision_render(name):
+    """
+    Render salt files for a deployment.
+    """
+    #
+    # Check deployment does exist
+    #
+    res, path, env = utils.deployment_verify(name)
+    if tasks.has_failed(res):
+        logging.critical(tasks.get_stderr(res))
+        return res
+
     #
     # Copy provision files
     #
-    logging.info("[X] Copying provision files...")
+    logging.info("[X] Rendering provision files...")
+
+    path_render = utils.path_deployment_provision(env["name"])
+    
+    try:
+        os.mkdir(path_render)
+    except:
+        pass
+
+    path_provision = utils.path_provision(env["provider"])
 
     for role, index, name, host in utils.get_hosts_from_env(env):
-        utils.template_render(utils.path_templates(env["provider"]), "grains.j2", path, role=role, index=index, env=env, **env)
-
-        res = tasks.run(f"cd {path} && mv grains {name}.grains")
-        if tasks.has_failed(res):
-            logging.critical(tasks.get_stderr(res))
-            return res
+        utils.template_render(path_provision, "grains.j2", path_render, f"{name}.grains", role=role, index=index, env=env, **env)
 
         logging.info(f"Rendered {name}.grains")
-        with open(f"{path}/{name}.grains", "r") as f:
+        with open(f"{path_render}/{name}.grains", "r") as f:
             logging.debug(f"{f.read()}")
 
     logging.info("OK\n")
@@ -239,17 +262,39 @@ def upload(name):
         logging.critical(tasks.get_stderr(res))
         return res
 
+    path_provision = utils.path_deployment_provision(env["name"])
+
     #
     # Execute uploads
     #
     logging.info("[X] Uploading files...")
 
+    for role, index, name, host in utils.get_hosts_from_env(env):
+        command = f"mkdir /tmp/salt"
+        res = ssh.run("root", "linux", host, command)
+        if tasks.has_failed(res):
+            logging.info(f"Cannot create directory structure on [{name}={host}]")
+            logging.info(tasks.get_stderr(res))
+            return res
+
+        command = f"mkdir /tmp/salt/file_roots"
+        res = ssh.run("root", "linux", host, command)
+        if tasks.has_failed(res):
+            logging.info(f"Cannot create directory structure on [{name}={host}]")
+            logging.info(tasks.get_stderr(res))
+            return res
+
     uploads = []
-    
+
     # copy salt directory and grains files to machines
     for role, index, name, host in utils.get_hosts_from_env(env):
-        uploads.append( (name, host, "./salt", "/tmp/salt") )
-        uploads.append( (name, host, f"{path}/{name}.grains", "/tmp/grains") )
+        uploads.append( (name, host, f"{utils.path_provision(env['provider'])}/provision.sh", f"/tmp/salt/") )
+        uploads.append( (name, host, f"{utils.path_provision(env['provider'])}/minion", "/tmp/salt/") )
+        uploads.append( (name, host, f"{path_provision}/{name}.grains", "/tmp/salt/grains") )
+        uploads.append( (name, host, f"{utils.path_provision(env['provider'])}/{role}/file_roots", f"/tmp/salt/") )
+        uploads.append( (name, host, f"{utils.path_provision(env['provider'])}/common", "/tmp/salt/file_roots/") )
+        uploads.append( (name, host, f"{utils.path_provision(env['provider'])}/{role}/pillar_roots", f"/tmp/salt/file_roots") )
+        
 
     upload_tasks  = [threading.Thread(target=upload_task, args=(name, host, origin, destiny)) for name, host, origin, destiny in uploads]
 
@@ -283,7 +328,7 @@ def provision_task(name, host, phases):
     #
     # Independently of success of provisioning process, cat logs
     #
-    destiny = f"./{host}.tmp"
+    destiny = f"./{name}.tmp"
     #logs = ["/var/log/provision.log", "/var/log/salt/minion"]
     logs = ["/var/log/provision.log"]
     for log in logs:
@@ -331,7 +376,7 @@ def clock_task(subject):
             logging.info(f"[{subject}] {elapsed} seconds elapsed")
 
 
-def provision(name):
+def provision_execute(name):
     """
     Executes in parallel the provisioning of the nodes.
     """
@@ -361,34 +406,46 @@ def provision(name):
     # Execute provisioning in mostly parallel (first a group of machines, then the second one)
     logging.info(f"Provisioning nodes")
    
-    clock.start() 
+    clock.start()     
 
-    group1 = [ host for host in hosts if host[0] != "node" or  host[2] == "node01"]
-    group2 = [ host for host in hosts if host[0] == "node" and host[2] != "node01"]
+    if not "qdevice" in env or not env["qdevice"]["enabled"]:
+        provision_tasks  = [(provision_task, name, host, phases) for role, index, name, host in hosts]
 
-    provision_tasks1  = [(provision_task, name, host, phases)                for role, index, name, host in group1]
-    provision_tasks2  = [(provision_task, name, host, ["install", "config"]) for role, index, name, host in group2]
-    provision_tasks3  = [(provision_task, name, host, ["start"])             for role, index, name, host in group2]
-
-    stage1 = provision_tasks1 + provision_tasks2
-    stage2 = provision_tasks3
-
-    stages = [stage1, stage2]
-
-    for stage in stages:
-        logging.info(f"Running stage")
         results = []
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
-            for task in stage:
+            for task in provision_tasks:
                 futures.append( executor.submit(task[0], task[1], task[2], task[3]) )
     
             for future in futures:
                 results.append( future.result() )
+    else:
+        group1 = [ host for host in hosts if host[0] != "node" or "node01" in host[2]]
+        group2 = [ host for host in hosts if host[0] == "node" and "node01" not in host[2]]
 
-        if functools.reduce(lambda x, y: x or tasks.get_return_code(y) != 0, results, False):
-            break
+        provision_tasks1  = [(provision_task, name, host, phases)                for role, index, name, host in group1]
+        provision_tasks2  = [(provision_task, name, host, ["install", "config"]) for role, index, name, host in group2]
+        provision_tasks3  = [(provision_task, name, host, ["start"])             for role, index, name, host in group2]
 
+        stage1 = provision_tasks1 + provision_tasks2
+        stage2 = provision_tasks3
+
+        stages = [stage1, stage2]
+
+        for stage in stages:
+            logging.info(f"Running stage")
+            results = []
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                futures = []
+                for task in stage:
+                    futures.append( executor.submit(task[0], task[1], task[2], task[3]) )
+        
+                for future in futures:
+                    results.append( future.result() )
+
+            if functools.reduce(lambda x, y: x or tasks.get_return_code(y) != 0, results, False):
+                break
+    
     with clock_task_mutex:        
         clock_task_active = False
     clock.join()
@@ -396,6 +453,74 @@ def provision(name):
     logging.info("OK\n")
 
     return tasks.success()
+
+
+def create_infrastructure(filename):
+    
+    env = read_deployment_file(filename)
+
+    # TODO: check existance of name and provider
+
+    name = env["name"]
+    
+    #
+    # Run phases in sequence
+    #
+    res = prepare(**env)
+    if tasks.has_failed(res):
+        logging.critical(f"Phase 'prepare' failed")
+        return res
+    
+    res = infrastructure_render(name)
+    if tasks.has_failed(res):
+        logging.critical(f"Phase 'infrastructure_render' failed")
+        return res
+
+    res = infrastructure_execute(name)
+    if tasks.has_failed(res):
+        logging.critical(f"Phase 'infrastructure_execute' failed")
+        return res
+
+    return tasks.success()
+
+
+def create_provision(filename):
+    
+    env = read_deployment_file(filename)
+
+    # TODO: check existance of name and provider
+
+    name = env["name"]
+    
+    res = provision_render(name)
+    if tasks.has_failed(res):
+        logging.critical(f"Phase 'upload' failed")
+        return res
+
+    res = upload(name)
+    if tasks.has_failed(res):
+        logging.critical(f"Phase 'upload' failed")
+        return res
+
+    res = provision_execute(name)
+    if tasks.has_failed(res):
+        logging.critical(f"Phase 'provision' failed")
+        return res
+
+    return tasks.success()
+
+
+def create_all(filename):
+
+    res = create_infrastructure(filename)
+    if tasks.has_failed(res):
+        return res
+
+    res = create_provision(filename)
+    if tasks.has_failed(res):
+        return res
+
+    return res
 
 
 def destroy_task(name, host):
@@ -409,10 +534,13 @@ def destroy_task(name, host):
     return res
 
 
-def destroy(name):
+def destroy(filename):
     """
     Destroys a deployed infrastructure.
     """
+    env = read_deployment_file(filename)
+    name = env["name"]
+
     #
     # Check deployment does exist
     #
@@ -461,12 +589,14 @@ def destroy(name):
     #
     logging.info("[X] Destroying infrastructure...")
 
-    if not terraform.is_initialized(path):
+    path_infrastructure = utils.path_deployment_infrastructure(env["name"])
+
+    if not terraform.is_initialized(path_infrastructure):
         res = tasks.failure(f"Terraform not initiated on {path}")
         logging.critical(tasks.get_stderr(res))
         return res
 
-    res = terraform.destroy(path)
+    res = terraform.destroy(path_infrastructure)
     if tasks.has_failed(res):
         logging.critical(tasks.get_stderr(res))
         return res
@@ -494,14 +624,14 @@ if __name__ == "__main__":
 
 Usage:
     deploy.py create DEPLOYMENT_FILE [-q] [-f LOG_FILE] [-l LOG_LEVEL]
-    deploy.py destroy DEPLOYMENT_NAME [-q] [-f LOG_FILE] [-l LOG_LEVEL]
-    deploy.py provision HOST (--only=PROVISION_PHASE | --from=PROVISION_PHASE) [-q] [-f LOG_FILE] [-l LOG_LEVEL]
+    deploy.py infrastructure DEPLOYMENT_FILE [-q] [-f LOG_FILE] [-l LOG_LEVEL]
+    deploy.py provision DEPLOYMENT_FILE [-q] [-f LOG_FILE] [-l LOG_LEVEL]
+    deploy.py destroy DEPLOYMENT_FILE [-q] [-f LOG_FILE] [-l LOG_LEVEL]
     deploy.py (-h | --help)
     deploy.py (-v | --version)
 
 Arguments:
     DEPLOYMENT_FILE                      File containing deployment specification
-    DEPLOYMENT_NAME                      Name of the deployment (specified on creation inside specification file)
     HOST                                 Host IP to provision
 
 Options:
@@ -510,13 +640,10 @@ Options:
     -q, --quiet                          Do not log to stdout
     -f LOG_FILE, --logfile=LOG_FILE      Send logging to file
     -l LOG_LEVEL, --loglevel=LOG_LEVEL   Logging level (one of DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: INFO]
-    --only=PROVISION_PHASE               Executes only the provision phase specified (one of INSTALL, CONFIG or START)
-    --from=PROVISION_PHASE               Executes all provision phases starting from specified
 
 Examples:
     deploy.py create three_node_cluster.json -q --logfile=output.log 
     deploy.py destroy cluster1 --loglevel=WARN
-    deploy.py provision --host=10.162.30.40 --from=CONFIG -l CRITICAL
     deploy.py -h
     deploy.py --version
 
@@ -544,35 +671,22 @@ Examples:
         # execute actions
         if arguments["create"]:
             deployment_file = arguments["DEPLOYMENT_FILE"]
-            res = create(deployment_file)
+            res = create_all(deployment_file)
             return
 
-        if arguments["destroy"]:
-            deployment_name = arguments["DEPLOYMENT_NAME"]
-            res = destroy(deployment_name)
+        if arguments["infrastructure"]:
+            deployment_file = arguments["DEPLOYMENT_FILE"]
+            res = create_infrastructure(deployment_file)
             return
 
         if arguments["provision"]:
-            host = arguments["HOST"]
-            phase = (arguments["--from"] or arguments["--only"]).upper()
-            only = arguments["--only"] != None
+            deployment_file = arguments["DEPLOYMENT_FILE"]
+            res = create_provision(deployment_file)
+            return
 
-            if not phase in ["INSTALL", "CONFIG", "START"]:
-                print(f"Used PROVISION_PHASE ({phase}) not in [INSTALL, CONFIG, START]")
-                print(f"Use deploy.py --help to show usage")
-                return
-            
-            if only:
-                res = provision_task("host", host, [ phase.lower() ] )
-            else:
-                provision_phases = [ phase.lower() ]
-                if phase == "INSTALL":
-                    provision_phases.append("config")
-                    provision_phases.append("start")
-                if phase == "CONFIG":
-                    provision_phases.append("start")
-
-                res = provision_task("host", host, provision_phases)
+        if arguments["destroy"]:
+            deployment_file = arguments["DEPLOYMENT_FILE"]
+            res = destroy(deployment_file)
             return
 
     from docopt import docopt

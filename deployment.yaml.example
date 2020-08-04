@@ -4,20 +4,27 @@
 name: test
 provider: libvirt
 
-terraform:
-    common:
-        qemu_uri: qemu+ssh://user@hypervisor.machine.org/system
-        volume_name: SLES4SAP-15_SP1               # name for exisiting volume
-        storage_pool: terraform                    # under this server folder for storage
-        private_ip_range: 192.168.145.0/24         # change this
-        public_bridge: br0                         # and this
-        shared_storage_type: shared-disk
+common:
+    qemu_uri: qemu+ssh://user@hypervisor.machine.org/system
+    volume_name: SLES4SAP-15_SP2
+    storage_pool: terraform
+    private_ip_range: 192.168.145.0/24
+    public_bridge: "br0"
+    shared_storage_type: shared-disk
+    reg_email: john.doe@organization.com
+    reg_code: GIVEN-CODE-TO-JOHN
+    
+node:
+    count: 3
 
-    node:
-        count: 3 # We want three nodes
+    1:
+        additional_repos: 
+            my_repo: my_repo_url
+    
+    2:
+        additional_pkgs:
+            - my_package
 
-salt:
-    common:
-        reg_email: john.doe@organization.com
-        reg_code: GIVEN-CODE-TO-JOHN
-        ha_repo: http://download.opensuse.org/repositories/network:ha-clustering:sap-deployments:devel
+    3:
+        volume_name: SLES4SAP-15_SP1
+

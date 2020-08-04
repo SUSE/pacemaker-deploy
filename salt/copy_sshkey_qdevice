@@ -1,6 +1,0 @@
-set node $argv
-set timeout -1
-spawn ssh-copy-id -o "StrictHostKeyChecking=no" root@$node
-expect "assword:"
-send -- "linux\r"
-expect eof

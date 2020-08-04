@@ -1,0 +1,45 @@
+provider "libvirt" {
+    uri = "{{ common.qemu_uri }}"
+}
+
+locals {
+    storage_pool       = "{{ common.storage_pool }}"
+    public_bridge      = "{{ common.public_bridge }}"
+    public_network_id  = "{{ libvirt_network.public_network.0.id if common.public_bridge == "" }}"
+    private_network_id = libvirt_network.private_network.0.id
+}
+
+#
+# Networks
+#
+{% if common.public_bridge == "" %}
+resource "libvirt_network" "public_network" {
+    count     = 1
+    name      = "${terraform.workspace}-public"
+    bridge    = "${terraform.workspace}-pb-br"
+    mode      = "nat"
+    addresses = [ "{{ common.public_ip_range }}" ]
+    dhcp {
+        enabled = "true"
+    }
+    dns {
+        enabled = true
+    }
+    autostart = true
+}
+{% endif %}
+
+resource "libvirt_network" "private_network" {
+    count     = 1
+    name      = "${terraform.workspace}-private"
+    bridge    = "${terraform.workspace}-pr-br"
+    mode      = "none"
+    addresses = [ "{{ common.private_ip_range }}" ]
+    dhcp {
+        enabled = "false"
+    }
+    dns {
+        enabled = true
+    }
+    autostart = true
+}
