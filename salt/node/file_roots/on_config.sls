@@ -2,8 +2,8 @@ include:
     - common.hostname
     - common.registration
     - common.repos
-    - common.update
     - common.additional_repos
+    - common.update
 {% if grains['shared_storage_type'] == 'iscsi' %}
     - common.iscsi
 {% endif %}
@@ -13,4 +13,5 @@ include:
     - common.auth_keys
     - common.ip_workaround
 {% endif %}
+    - common.hosts
     - common.add_pillar_files

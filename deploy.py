@@ -119,6 +119,8 @@ def infrastructure_render(name):
     if "qdevice" in env and env["qdevice"]["enabled"]:
         utils.template_render(path_infrastructure, "qdevice.tf.j2", path_render, "qdevice.tf", **env)
     
+    if "examiner" in env and env["examiner"]["enabled"]:
+        utils.template_render(path_infrastructure, "examiner.tf.j2", path_render, "examiner.tf", **env)
 
     logging.info("OK\n")
 
@@ -262,8 +264,6 @@ def upload(name):
         logging.critical(tasks.get_stderr(res))
         return res
 
-    path_provision = utils.path_deployment_provision(env["name"])
-
     #
     # Execute uploads
     #
@@ -287,13 +287,15 @@ def upload(name):
     uploads = []
 
     # copy salt directory and grains files to machines
+    path_deployment_provision = utils.path_deployment_provision(env["name"])
+    path_provision = utils.path_provision(env["name"])
     for role, _, name, host in utils.get_hosts_from_env(env):
-        uploads.append( (name, host, f"{utils.path_provision(env['provider'])}/provision.sh", f"/tmp/salt/") )
-        uploads.append( (name, host, f"{utils.path_provision(env['provider'])}/minion", "/tmp/salt/") )
-        uploads.append( (name, host, f"{path_provision}/{name}.grains", "/tmp/salt/grains") )
-        uploads.append( (name, host, f"{utils.path_provision(env['provider'])}/{role}/file_roots", f"/tmp/salt/") )
-        uploads.append( (name, host, f"{utils.path_provision(env['provider'])}/common", "/tmp/salt/file_roots/") )
-        uploads.append( (name, host, f"{utils.path_provision(env['provider'])}/{role}/pillar_roots", f"/tmp/salt/file_roots") )
+        uploads.append( (name, host, f"{path_provision}/provision.sh", f"/tmp/salt/") )
+        uploads.append( (name, host, f"{path_provision}/minion", "/tmp/salt/") )
+        uploads.append( (name, host, f"{path_deployment_provision}/{name}.grains", "/tmp/salt/grains") )
+        uploads.append( (name, host, f"{path_provision}/{role}/file_roots", f"/tmp/salt/") )
+        uploads.append( (name, host, f"{path_provision}/common", "/tmp/salt/file_roots/") )
+        uploads.append( (name, host, f"{path_provision}/{role}/pillar_roots", f"/tmp/salt/file_roots") )
         
 
     upload_tasks  = [threading.Thread(target=upload_task, args=(name, host, origin, destiny)) for name, host, origin, destiny in uploads]
@@ -399,7 +401,7 @@ def provision_execute(name):
     hosts = utils.get_hosts_from_env(env)
 
     # Prepare tasks
-    phases = ["install", "config", "start"]
+    #phases = ["install", "config", "start"]
     clock_task_active = True
     clock = threading.Thread(target=clock_task, args=("clock",))
 
@@ -408,17 +410,15 @@ def provision_execute(name):
    
     clock.start()     
 
-    group1 = [ host for host in hosts if host[0] != "node" or "node01" in host[2]]
-    group2 = [ host for host in hosts if host[0] == "node" and "node01" not in host[2]]
+    group1 = [ host for host in hosts ]
+    group2 = [ host for host in hosts if host[0] != "node" or "node01" in host[2]]
+    group3 = [ host for host in hosts if host[0] == "node" and "node01" not in host[2]]
 
-    provision_tasks1  = [(provision_task, name, host, phases)                for role, index, name, host in group1]
-    provision_tasks2  = [(provision_task, name, host, ["install", "config"]) for role, index, name, host in group2]
-    provision_tasks3  = [(provision_task, name, host, ["start"])             for role, index, name, host in group2]
+    provision_tasks1  = [(provision_task, name, host, ["install", "config"]) for role, index, name, host in group1]
+    provision_tasks2  = [(provision_task, name, host, ["start"])             for role, index, name, host in group2]
+    provision_tasks3  = [(provision_task, name, host, ["start"])             for role, index, name, host in group3]
 
-    stage1 = provision_tasks1 + provision_tasks2
-    stage2 = provision_tasks3
-
-    stages = [stage1, stage2]
+    stages = [provision_tasks1, provision_tasks2, provision_tasks3]
 
     for stage in stages:
         logging.info(f"Running stage")
@@ -426,7 +426,8 @@ def provision_execute(name):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
             for task in stage:
-                futures.append( executor.submit(task[0], task[1], task[2], task[3]) )
+                function, host_name, host_ip, parameters = task
+                futures.append( executor.submit(function, host_name, host_ip, parameters) )
     
             for future in futures:
                 results.append( future.result() )
@@ -563,16 +564,19 @@ def destroy(filename):
     #
     # Eliminate entries from known_hosts
     #
-    logging.info("[X] Eliminating server from known_hosts...")
+    logging.info("[X] Removing servers from known_hosts...")
+
+    hosts = utils.get_hosts_from_env(env)
 
     try:
-        for _, _, name, host in hosts:
-            tasks.run(f"ssh-keygen -R {host} -f ~/.ssh/known_hosts")
-            logging.info(f"Eliminated from known_hosts [{name}={host}]")
+        for _, _, host_name, host_ip in hosts:
+            tasks.run(f"ssh-keygen -R {host_ip} -f ~/.ssh/known_hosts")
+            logging.info(f"Eliminated from known_hosts [{host_name}={host_ip}]")
     except:
         logging.info("No actions performed...")
 
     logging.info("OK\n")
+
 
     #
     # Destroy infrastructure

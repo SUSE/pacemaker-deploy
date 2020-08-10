@@ -1,4 +1,4 @@
-{% for name, ip in grains['host_ips'].items() %}
+{% for name, ip in grains['machines'].items() %}
 {{ name }}:
     host.present:
         - ip: {{ ip }}

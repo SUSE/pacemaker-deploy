@@ -163,7 +163,7 @@ def sink(env):
     sinkable_props = ["source_image", "volume_name", "additional_repos", "additional_pkgs", "cpus", "memory", "disk_size"]
 
     # first from common to the rest of roles
-    for role in ["node", "iscsi", "qdevice"]:
+    for role in ["node", "iscsi", "qdevice", "examiner"]:
         sink_entry(new_env["common"], new_env[role], sinkable_props)
 
     delete_from_parent(new_env["common"], sinkable_props)
@@ -182,6 +182,9 @@ def sink(env):
     
     if not new_env["qdevice"]["enabled"]:
         del new_env["qdevice"]
+
+    if not new_env["examiner"]["enabled"]:
+        del new_env["examiner"]
 
     return new_env
 
@@ -214,8 +217,8 @@ def get_hosts_from_env(env):
         host = env[role][index + 1]["public_ip"]
         hosts.append( (role, index + 1, name, host) )
 
-    # if there is a [iscsi, qdevice] device, copy salt directory and grains file
-    for role in ["iscsi", "qdevice"]:
+    # if there is a [iscsi, qdevice, examiner] device, copy salt directory and grains file
+    for role in ["iscsi", "qdevice", "examiner"]:
         if role in env and "public_ip" in env[role]:
             name = env[role]["name"]
             host = env[role]["public_ip"]

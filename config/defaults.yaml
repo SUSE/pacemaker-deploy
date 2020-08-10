@@ -35,3 +35,6 @@ sbd: {}
 qdevice:                     # monitor specific config
     enabled: false           # indicates if qdevice is used
     options: ""
+
+examiner:
+    enabled: false

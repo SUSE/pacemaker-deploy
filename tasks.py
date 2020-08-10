@@ -1,12 +1,17 @@
 import subprocess
 
 
-def run(command):
+def run(command, input = ""):
     """
     Executes a given command. Return a tuple with (return_code, stdout, stderr)
     """
-    pipes = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-    stdout, stderr = pipes.communicate()
+    if input != "":
+        pipes = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        stdout, stderr = pipes.communicate(input=input.encode('utf-8'))
+    else:
+        pipes = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        stdout, stderr = pipes.communicate()
+    
     return (pipes.returncode, stdout.decode("utf-8"), stderr.decode("utf-8"))
 
 

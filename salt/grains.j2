@@ -1,49 +1,90 @@
 provider: {{ provider }}
+
 role: {{ role }}
-cluster_name: "{{ name }}-cluster"
 
+cluster_name: "{{ name }}"
 
-## COMMON ##
 shared_storage_type: "{{ common.shared_storage_type }}"
+
 reg_email: "{{ common.reg_email }}"
+
 reg_code: "{{ common.reg_code }}"
+
 reg_additional_modules: {}
+
 network_domain: "{{ common.network_domain }}"
+
 authorized_keys: [] ##[ "key" ]
 
-{% if role == "node" %}
-## NODE ##
 init_node: "{{ node[1].name }}"
-host: "{{ node[index].name }}"
-host_ip: "{{ node[index].private_ip }}"
-host_ips:
+
+nodes:
 {%- for k in node if not k == 'count' %}
     {{ node[k].name }}: {{ node[k].private_ip }}
 {%- endfor %}
-additional_pkgs: {{ node[index].additional_pkgs }}
-additional_repos: {{ node[index].additional_repos }}
+
+machines:
+{%- for k in node if not k == 'count' %}
+    {{ node[k].name }}: {{ node[k].private_ip }}
+{%- endfor %}
+{%- if common.shared_storage_type == "iscsi" %}
+    {{ iscsi.name }}: {{ iscsi.private_ip }}
+{%- endif %}
+{%- if "qdevice" in env and qdevice.enabled %}
+    {{ qdevice.name }}: {{ qdevice.private_ip }}
+{%- endif %}
+{%- if "examiner" in env and examiner.enabled %}
+    {{ examiner.name }}: {{ examiner.private_ip }}
+{%- endif %}
+
 
 sbd_disk_index: 1
-{%- if common.shared_storage_type == "shared-disk" %}
-sbd_disk_device: "/dev/vdb"
-{% else %}
-sbd_disk_device: "/dev/sdb"
-iscsi_ip: "{{ iscsi.private_ip }}"
-{%- endif %}
+
+sbd_disk_device: "{{ "/dev/vdb" if common.shared_storage_type == "shared-disk" else "/dev/sdb" }}"
+
+iscsi_enabled: {{ jsonify(true) if common.shared_storage_type == "iscsi" else jsonify(false) }}
+
+iscsi_name: "{{  iscsi.name if "iscsi" in env }}"
+
+iscsi_ip: "{{  iscsi.private_ip if "iscsi" in env }}"
 
 qdevice_enabled: {{ jsonify(qdevice.enabled) if "qdevice" in env else jsonify(false) }}
+
+qdevice_name: "{{  qdevice.name if "qdevice" in env }}"
+
 qdevice_ip: "{{  qdevice.private_ip if "qdevice" in env }}"
+
+examiner_enabled: {{ jsonify(examiner.enabled) if "examiner" in env else jsonify(false) }}
+
+examiner_name: "{{  examiner.name if "examiner" in env }}"
+
+examiner_ip: "{{ examiner.private_ip if "examiner" in env }}"
+
+
+{% if role == "node" %}
+host: "{{ node[index].name }}"
+
+host_ip: "{{ node[index].private_ip }}"
+
+additional_pkgs: {{ node[index].additional_pkgs }}
+
+additional_repos: {{ node[index].additional_repos }}
 {%- endif %}
 
+
 {%- if role == "iscsi" %}
-## ISCSI ##
 host: "{{ iscsi.name }}"
+
 host_ip: "{{ iscsi.private_ip }}"
+
 additional_pkgs: {{ iscsi.additional_pkgs }}
+
 additional_repos: {{ iscsi.additional_repos }}
-iscsi_ip: "{{ iscsi.private_ip }}"
+
 iscsi_device: "{{ iscsi.device }}"
+
 iscsi_disks: {{ iscsi.disks }}
+
 partitions:
   1:
     start: 1
@@ -56,12 +97,25 @@ partitions:
     end: 100%
 {%- endif %}
 
-
 {%- if role == "qdevice" %}
-## QDEVICE ##
 host: "{{ qdevice.name }}"
+
 host_ip: "{{ qdevice.private_ip }}"
+
 additional_pkgs: {{ qdevice.additional_pkgs }}
+
 additional_repos: {{ qdevice.additional_repos }}
+
 qdevice_options: "{{ qdevice.options }}"
+{%- endif %}
+
+
+{%- if role == "examiner" %}
+host: "{{ examiner.name }}"
+
+host_ip: "{{ examiner.private_ip }}"
+
+additional_pkgs: {{ examiner.additional_pkgs }}
+
+additional_repos: {{ examiner.additional_repos }}
 {%- endif %}

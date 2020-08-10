@@ -1,8 +1,8 @@
 include:
+    - common.keys
 {% if grains['provider'] in ['aws', 'azure', 'gcp'] %}
     - on_start.network
 {% endif %}
-    - on_start.hosts
 {% if grains['cluster_ssh_pub'] is defined and grains['cluster_ssh_key'] is defined %}
     - on_start.ssh
 {% endif %}
@@ -13,10 +13,10 @@ include:
     - on_start.aws_add_credentials
     - on_start.aws_data_provider
 {%- endif %}
-{% if grains['qdevice_enabled'] %}
-    - on_start.qdevice_setup
-{% endif %}
     - cluster
 {% if grains['qdevice_enabled'] %}
-    - on_start.qdevice_start
+    - on_start.qdevice
+{% endif %}
+{% if grains['examiner_enabled'] %}
+    - on_start.examiner
 {% endif %}
