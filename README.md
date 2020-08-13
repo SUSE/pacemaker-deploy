@@ -11,18 +11,10 @@ The deployment file is written in YAML and an example can be found in [deploymen
 
 # Prerequisites
 
-For deploying only:
-
 - ```zypper install terraform sshpass python3-Jinja2 python3-PyYAML python3-docopt```
-
-For wizard:
-
-- ```pip install inquirer```
-- ```zypper install python3-pyfiglet python3-colorama python3-termcolor```
 
 # Use
 
-- ```wizard.py```
 - ```deploy.py --help```
 
 For a quickstart use:
@@ -32,7 +24,7 @@ For more info check the [deployment example file](deployment.yaml.example)
 The basic use is the following:
 
 - ```deploy.py create DEPLOYMENT_FILE``` - This creates a cluster as specified in the deployment file.
-- ```deploy.py destroy DEPLOYMENT_NAME``` - This destroys the cluster and erases the deployment folder. The name is the one specified in the deployment file used to create the cluster and there must a folder under deployed (deployed/DEPLOYMENT_NAME) which holds the data of the cluster
+- ```deploy.py destroy DEPLOYMENT_FILE``` - This destroys the cluster and erases the deployment folder. The name is the one specified in the deployment file used to create the cluster and there must a folder under deployed (deployed/DEPLOYMENT_NAME) which holds the data of the cluster
 
 # Deployment file
 
@@ -40,19 +32,34 @@ The deployment file has the following parts:
 
 - name
 - provider
-- terraform
-- salt
-
-Under the __terraform__ ans __salt__ keys, there are the following subkeys:
-
 - common
 - node
 - iscsi
-- monitor
+- sbd
+- qdevice
+- examiner
 
-Under the __common__ key, there are generic subkeys that applies to all nodes in the cluster, be it froterrafom or salt. Same pattern follows for node, iscsi and monitor keys, where subjeys are related with data relevant for cluster generic odes, iscsi server if present and monitor server if any, respectively.
+Under the __common__ key, there are generic subkeys that applies to all nodes in the cluster. Same pattern follows for node, iscsi, sbd, qdevice and examiner keys, where subkeys are related with data relevant for cluster generic nodes, iscsi server if present, shared-disk if present, qdevice if present and examiner server if any, respectively.
 
 In the config/defaults.yaml file, info about all currently supported keys and educated guessed values for defaults are provided.
+
+More concrete keys override more generic ones. For example if ```volume_name``` is specified under __common__ key, and ```examiner``` specifies under its key another different value, this last value is the one applied to ```examiner``` server. For the rest of machines in the cluster, supposing no other keys overrides ```volume_name``` value, the __common__ value will be used. The same pattern applies to cluster nodes themselves (under __node__ key), where you can override keys for a specific machine specifying its number as key under __node__, ie:
+```
+node:
+    volume_name: os_image
+    1:
+        volume_name: other_os_image
+```
+In this case all cluster nodes will use ```os_image``` except node number 1 which will use ```other_os_image```.
+
+The keys currently available to be overriden are:
+ - source_image
+ - volume_name
+ - additional_repos
+ - additional_pkgs
+ - cpus
+ - memory
+ - disk_size
 
 Not all the keys are mandatory, as can be seen in the [example deployment file](deployment.yaml.example). The deployment file provided is mixed with the [defaults config file](config/defaults.yaml) to have a value for every single key.
 This way, only keys that differ from defaults need to be specified.
@@ -73,13 +80,12 @@ The job of ```deploy.py``` is to orchestrate both. First executing the infrastru
  The steps executed are:
 
 - The tool verifies if the name specified in the deployment file does already exists. Deployments are created under deployed directory, and then it is filled with all the files used to create the cluster.
-- If the deployment is not already created, the infrastructure files for the designated provider ar copied into deployment directory. The provider is also specified inthe deployment file. The infrastructure files are located under terraform/PROVIDER.
-- The template file for the terraform variables is rendered used the deployment file as input. That file is located under templates/PROVIDER/terraform.tfvars.template and is copied with the rest of infrastructure code to the deployment folder
+- If the deployment is not already created, the infrastructure files for the designated provider are rendered into deployment directory. The provider is also specified in the deployment file. The infrastructure files are located under terraform/PROVIDER.
 - Now the creation of infrastructure is executed.
 - If the infrastructure is correctly created, the ouputs generated are added to the deployment file data
-- The template files for each node for the dynamic provisioning are rendered using all the deployment data and copied to the deploymen folder. Those are located under templates/PROVIDER/
-- Files for the dynamic provisioning, located under salt directory, with the renderd files, are copied to each node
-- The provisioning process is executed. First in one node, that executes the init of the cluster. Then in the rest of nodes in parallel who joins
+- The template files for each node for the dynamic provisioning are rendered using all the deployment data and copied to the deployment folder. Those are located under salt/grains.j2
+- Files for the dynamic provisioning, located under salt directory, with the rendered files, are copied to each node
+- The provisioning process is executed.
 
 
 # TODO
