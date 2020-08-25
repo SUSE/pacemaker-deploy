@@ -29,7 +29,9 @@ def read_deployment_file(filename):
         return tasks.failure(f"Exception: {e.args}")
 
     # default values
-    with open(f"{utils.path_config()}/defaults.yaml", "r") as f:
+    provider = user_data["provider"]
+
+    with open(f"{utils.path_config()}/defaults.{provider}.yaml", "r") as f:
         defaults = yaml.load(f, Loader=yaml.FullLoader)
 
     # merge in environment
@@ -107,14 +109,16 @@ def infrastructure_render(name):
     for index in range(0, int(env["node"]["count"])):
         utils.template_render(path_infrastructure, "node.tf.j2", path_render, f"node{(index + 1):0>2}.tf", index = index + 1, **env)
 
-    shutil.copy(path_infrastructure + "/node.xsl", path_render)
+    if(env["provider"] == "libvirt"):
+        shutil.copy(path_infrastructure + "/node.xsl", path_render)
 
     if env["common"]["shared_storage_type"] == "iscsi":
         utils.template_render(path_infrastructure, "iscsi.tf.j2", path_render, "iscsi.tf", **env)
 
     if env["common"]["shared_storage_type"] == "shared-disk":
         utils.template_render(path_infrastructure, "sbd.tf.j2", path_render, "sbd.tf", **env)
-        shutil.copy(path_infrastructure + "/raw.xsl", path_render)
+        if(env["provider"] == "libvirt"):
+            shutil.copy(path_infrastructure + "/raw.xsl", path_render)
 
     if "qdevice" in env and env["qdevice"]["enabled"]:
         utils.template_render(path_infrastructure, "qdevice.tf.j2", path_render, "qdevice.tf", **env)
@@ -170,6 +174,15 @@ def infrastructure_execute(name):
     # Get terraform outputs
     #
     logging.info("[X] Adding terraform outputs to environment...")
+
+    # refresh
+    logging.info(f"Refreshing output")
+    res = terraform.refresh(path_infrastructure)
+    if tasks.has_failed(res):
+        logging.critical(tasks.get_stderr(res))
+        return res
+    else:
+        logging.debug(tasks.get_stdout(res))
 
     # capture output
     logging.info(f"Capturing output")
@@ -231,7 +244,7 @@ def provision_render(name):
 
     path_provision = utils.path_provision(env["provider"])
 
-    for role, index, name, _ in utils.get_hosts_from_env(env):
+    for role, index, name, _, _, _ in utils.get_hosts_from_env(env):
         utils.template_render(path_provision, "grains.j2", path_render, f"{name}.grains", role=role, index=index, env=env, **env)
 
         logging.info(f"Rendered {name}.grains")
@@ -243,8 +256,8 @@ def provision_render(name):
     return tasks.success()
 
 
-def upload_task(name, host, origin, destiny):
-    res = ssh.safe_copy_to_host("root", "linux", host, origin, destiny)
+def upload_task(name, host, username, password, origin, destiny):
+    res = ssh.safe_copy_to_host(username, password, host, origin, destiny)
     if tasks.has_failed(res):
         logging.critical(f"Cannot copy [{origin}] -> [({name}={host}):{destiny}]")
         logging.critical(tasks.get_stderr(res))
@@ -269,16 +282,16 @@ def upload(name):
     #
     logging.info("[X] Uploading files...")
 
-    for role, _, name, host in utils.get_hosts_from_env(env):
+    for role, _, name, host, username, password in utils.get_hosts_from_env(env):
         command = f"mkdir /tmp/salt"
-        res = ssh.run("root", "linux", host, command)
+        res = ssh.run(username, password, host, command)
         if tasks.has_failed(res):
             logging.info(f"Cannot create directory structure on [{name}={host}]")
             logging.info(tasks.get_stderr(res))
             return res
 
         command = f"mkdir /tmp/salt/file_roots"
-        res = ssh.run("root", "linux", host, command)
+        res = ssh.run(username, password, host, command)
         if tasks.has_failed(res):
             logging.info(f"Cannot create directory structure on [{name}={host}]")
             logging.info(tasks.get_stderr(res))
@@ -289,16 +302,16 @@ def upload(name):
     # copy salt directory and grains files to machines
     path_deployment_provision = utils.path_deployment_provision(env["name"])
     path_provision = utils.path_provision(env["name"])
-    for role, _, name, host in utils.get_hosts_from_env(env):
-        uploads.append( (name, host, f"{path_provision}/provision.sh", f"/tmp/salt/") )
-        uploads.append( (name, host, f"{path_provision}/minion", "/tmp/salt/") )
-        uploads.append( (name, host, f"{path_deployment_provision}/{name}.grains", "/tmp/salt/grains") )
-        uploads.append( (name, host, f"{path_provision}/{role}/file_roots", f"/tmp/salt/") )
-        uploads.append( (name, host, f"{path_provision}/common", "/tmp/salt/file_roots/") )
-        uploads.append( (name, host, f"{path_provision}/{role}/pillar_roots", f"/tmp/salt/file_roots") )
+    for role, _, name, host, username, password in utils.get_hosts_from_env(env):
+        uploads.append( (name, host, username, password, f"{path_provision}/provision.sh", f"/tmp/salt/") )
+        uploads.append( (name, host, username, password, f"{path_provision}/minion", "/tmp/salt/") )
+        uploads.append( (name, host, username, password, f"{path_deployment_provision}/{name}.grains", "/tmp/salt/grains") )
+        uploads.append( (name, host, username, password, f"{path_provision}/{role}/file_roots", f"/tmp/salt/") )
+        uploads.append( (name, host, username, password, f"{path_provision}/common", "/tmp/salt/file_roots/") )
+        uploads.append( (name, host, username, password, f"{path_provision}/{role}/pillar_roots", f"/tmp/salt/file_roots") )
         
 
-    upload_tasks  = [threading.Thread(target=upload_task, args=(name, host, origin, destiny)) for name, host, origin, destiny in uploads]
+    upload_tasks  = [threading.Thread(target=upload_task, args=(name, host, username, password, origin, destiny)) for name, host, username, password, origin, destiny in uploads]
 
     # Execute upload in parallel
     for task in upload_tasks:
@@ -312,7 +325,7 @@ def upload(name):
     return tasks.success()
 
 
-def provision_task(name, host, phases):
+def provision_task(name, host, username, password, phases):
     """
     Executes the provisioning in a given host.
     """
@@ -320,7 +333,7 @@ def provision_task(name, host, phases):
     # Execute provisioning
     #
     for phase in phases:
-        res = ssh.run("root", "linux", host, f"sh /tmp/salt/provision.sh -{phase[0]} -l /var/log/provision.log")
+        res = ssh.run(username, password, host, f"sh /tmp/salt/provision.sh -{phase[0]} -l /var/log/provision.log")
         if tasks.has_failed(res):
             logging.info(f"phase {phase} error -> [{name}={host}]")
             break
@@ -334,7 +347,7 @@ def provision_task(name, host, phases):
     #logs = ["/var/log/provision.log", "/var/log/salt/minion"]
     logs = ["/var/log/provision.log"]
     for log in logs:
-        rcopy = ssh.copy_from_host("root", "linux", host, log, destiny)
+        rcopy = ssh.copy_from_host(username, password, host, log, destiny)
         if tasks.has_succeeded(rcopy):
             with open(destiny, "r") as f:
                 logging.debug(f"[{name}={host}] {log} =\n{f.read()}")
@@ -414,9 +427,9 @@ def provision_execute(name):
     group2 = [ host for host in hosts if host[0] != "node" or "node01" in host[2]]
     group3 = [ host for host in hosts if host[0] == "node" and "node01" not in host[2]]
 
-    provision_tasks1  = [(provision_task, name, host, ["install", "config"]) for role, index, name, host in group1]
-    provision_tasks2  = [(provision_task, name, host, ["start"])             for role, index, name, host in group2]
-    provision_tasks3  = [(provision_task, name, host, ["start"])             for role, index, name, host in group3]
+    provision_tasks1  = [(provision_task, name, host, username, password, ["install", "config"]) for role, index, name, host, username, password in group1]
+    provision_tasks2  = [(provision_task, name, host, username, password, ["start"])             for role, index, name, host, username, password in group2]
+    provision_tasks3  = [(provision_task, name, host, username, password, ["start"])             for role, index, name, host, username, password in group3]
 
     stages = [provision_tasks1, provision_tasks2, provision_tasks3]
 
@@ -426,8 +439,8 @@ def provision_execute(name):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
             for task in stage:
-                function, host_name, host_ip, parameters = task
-                futures.append( executor.submit(function, host_name, host_ip, parameters) )
+                function, host_name, host_ip, username, password, parameters = task
+                futures.append( executor.submit(function, host_name, host_ip, username, password, parameters) )
     
             for future in futures:
                 results.append( future.result() )
@@ -512,11 +525,11 @@ def create_all(filename):
     return res
 
 
-def destroy_task(name, host):
+def destroy_task(name, host, username, password):
     """
     Destroys the provisioning in a given host.
     """
-    res = ssh.run("root", "linux", host, f"sh /tmp/salt/provision.sh -d -l /var/log/destroying.log")
+    res = ssh.run(username, password, host, f"sh /tmp/salt/provision.sh -d -l /var/log/destroying.log")
         
     logging.info(f"Provision destroy on [{name}={host}]")
  
@@ -548,7 +561,7 @@ def destroy(filename):
     try:
         hosts = utils.get_hosts_from_env(env)
 
-        destroy_tasks  = [threading.Thread(target=destroy_task, args=(name, host)) for role, index, name, host in hosts]
+        destroy_tasks  = [threading.Thread(target=destroy_task, args=(name, host, username, password)) for role, index, name, host, username, password in hosts]
 
         for task in destroy_tasks:
             task.start()
@@ -566,10 +579,10 @@ def destroy(filename):
     #
     logging.info("[X] Removing servers from known_hosts...")
 
-    hosts = utils.get_hosts_from_env(env)
-
     try:
-        for _, _, host_name, host_ip in hosts:
+        hosts = utils.get_hosts_from_env(env)
+        
+        for _, _, host_name, host_ip, _, _ in hosts:
             tasks.run(f"ssh-keygen -R {host_ip} -f ~/.ssh/known_hosts")
             logging.info(f"Eliminated from known_hosts [{host_name}={host_ip}]")
     except:

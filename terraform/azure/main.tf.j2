@@ -1,0 +1,148 @@
+terraform {
+    required_version = ">= 0.12"
+}
+
+provider "azurerm" {
+  version = "~> 1.44"
+}
+
+data "azurerm_subscription" "current" {
+}
+
+locals {
+    az_region            = "{{ common.region }}"
+    resource_group_name  = "{{ common.resource_group }}"
+    net_address_range    = "{{ common.private_ip_range }}"
+    subnet_address_range = cidrsubnet(local.net_address_range, 8, 1)
+}
+
+resource "azurerm_resource_group" "rg" {
+    name     = local.resource_group_name
+    location = local.az_region
+}
+
+resource "azurerm_network_security_group" "security_group" {
+    name                = "{{ name }}-sg"
+    location            = azurerm_resource_group.rg.location
+    resource_group_name = azurerm_resource_group.rg.name
+
+    security_rule {
+        name                       = "OUTALL"
+        priority                   = 100
+        direction                  = "Outbound"
+        access                     = "Allow"
+        protocol                   = "*"
+        source_port_range          = "*"
+        destination_port_range     = "*"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+
+    security_rule {
+        name                       = "LOCAL"
+        priority                   = 101
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "*"
+        source_port_range          = "*"
+        destination_port_range     = "*"
+        source_address_prefix      = local.net_address_range
+        destination_address_prefix = "*"
+    }
+
+    security_rule {
+        name                       = "SSH"
+        priority                   = 1001
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "22"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+
+    security_rule {
+        name                       = "HTTP"
+        priority                   = 1002
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "80"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+
+    security_rule {
+        name                       = "HTTPS"
+        priority                   = 1003
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "443"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+
+    security_rule {
+        name                       = "HAWK"
+        priority                   = 1004
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "7630"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+    }
+
+    tags = {
+        workspace = "{{ name }}-cluster"
+    }
+}
+
+resource "azurerm_virtual_network" "net" {
+    name                = "{{ name }}-net"
+    address_space       = [local.net_address_range]
+    location            = azurerm_resource_group.rg.location
+    resource_group_name = azurerm_resource_group.rg.name
+
+    tags = {
+        workspace = "{{ name }}-cluster"
+    }
+}
+
+resource "azurerm_subnet" "subnet" {
+    name                 = "{{ name }}-subnet"
+    resource_group_name  = azurerm_resource_group.rg.name
+    virtual_network_name = azurerm_virtual_network.net.name
+    address_prefix       = local.subnet_address_range
+}
+
+resource "azurerm_subnet_network_security_group_association" "subnet" {
+    subnet_id                 = azurerm_subnet.subnet.id
+    network_security_group_id = azurerm_network_security_group.security_group.id
+}
+
+resource "azurerm_route_table" "routes" {
+    name                = "{{ name }}-route-table"
+    location            = azurerm_resource_group.rg.location
+    resource_group_name = azurerm_resource_group.rg.name
+
+    route {
+        name           = "default"
+        address_prefix = local.net_address_range
+        next_hop_type  = "vnetlocal"
+    }
+
+    tags = {
+        workspace = "{{ name }}-cluster"
+    }
+}
+
+resource "azurerm_subnet_route_table_association" "subnet" {
+    subnet_id      = azurerm_subnet.subnet.id
+    route_table_id = azurerm_route_table.routes.id
+}

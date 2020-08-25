@@ -33,6 +33,13 @@ def apply(path):
     return tasks.run(f"cd {path} && terraform apply -auto-approve -no-color")
 
 
+def refresh(path):
+    """
+    Launch Terraform and refresh output.
+    """
+    return tasks.run(f"cd {path} && terraform refresh")
+    
+
 def destroy(path):
     """
     Launch Terraform and eliminate all infrastructure.

@@ -1,0 +1,88 @@
+{% set n = '{:0>2}'.format(index) %}
+
+resource "azurerm_public_ip" "node{{ n }}_ip" {
+    name                    = "{{ name }}-node{{ n }}-public-ip"
+    location                = azurerm_resource_group.rg.location
+    resource_group_name     = azurerm_resource_group.rg.name
+    allocation_method       = "Dynamic"
+    idle_timeout_in_minutes = 30
+
+    tags = {
+        workspace = "{{ name }}-cluster"
+    }
+}
+
+resource "azurerm_network_interface" "node{{ n }}_nic" {
+    name                      = "{{ name }}-node{{ n }}-nic"
+    location                  = azurerm_resource_group.rg.location
+    resource_group_name       = azurerm_resource_group.rg.name
+    network_security_group_id = azurerm_network_security_group.security_group.id
+
+    ip_configuration {
+        name                          = "ip-configuration-node{{ n }}"
+        subnet_id                     = azurerm_subnet.subnet.id
+        private_ip_address_allocation = "static"
+        private_ip_address            = cidrhost(local.subnet_address_range, 10 + {{ index }})
+        public_ip_address_id          = azurerm_public_ip.node{{ n }}_ip.id
+    }
+
+    tags = {
+        workspace = "{{ name }}-cluster"
+    }
+}
+
+
+
+resource "azurerm_virtual_machine" "node{{ n }}_vm" {
+    name                             = "{{ name }}-node{{ n }}"
+    location                         = azurerm_resource_group.rg.location
+    resource_group_name              = azurerm_resource_group.rg.name
+    network_interface_ids            = [azurerm_network_interface.node{{ n }}_nic.id]
+    vm_size                          = "{{ node[index].vm_size }}"
+    delete_os_disk_on_termination    = true
+    delete_data_disks_on_termination = true
+
+    storage_os_disk {
+        name              = "{{ name }}-node{{ n }}-os-disk"
+        caching           = "ReadWrite"
+        create_option     = "FromImage"
+        managed_disk_type = "Premium_LRS"
+    }
+
+    storage_image_reference {
+        id        = ""
+        publisher = "SUSE"
+        offer     = "SLES-SAP-BYOS"
+        sku       = {{ node[index].sku }}
+        version   = "latest"
+    }
+
+    os_profile {
+        computer_name  = "{{ name }}-node{{ n }}"
+        admin_username = "{{ node[index].username }}"
+        admin_password = "{{ node[index].password }}"
+    }
+
+    os_profile_linux_config {
+        disable_password_authentication = false
+    }
+
+
+    tags = {
+        workspace = "{{ name }}-cluster"
+    }
+}
+
+
+
+output "node{{n}}_private_ip" {
+    value = azurerm_network_interface.node{{ n }}_nic.private_ip_address
+}
+
+output "node{{n}}_public_ip" {
+    value = azurerm_public_ip.node{{ n }}_ip.ip_address
+}
+
+output "node{{n}}_name" {
+    value = azurerm_virtual_machine.node{{ n }}_vm.name
+}

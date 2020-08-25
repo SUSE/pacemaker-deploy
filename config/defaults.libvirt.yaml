@@ -1,5 +1,5 @@
 name: ""      # name of the deployment
-provider: ""  # provider. Should be one of libvirt, azure, aws or gcp
+provider: libvirt
 
 common:                                 # generic infrastructure settings
     qemu_uri: qemu:///system            # qemu uri for the KVM hypervisor
@@ -11,6 +11,8 @@ common:                                 # generic infrastructure settings
     reg_email: ""
     reg_code: ""
     network_domain: local
+    username: root
+    password: linux
 
     source_image: ""                    # url for the image of the OS
     volume_name: ""                     # alternatively, in KVM, a volume can be specified

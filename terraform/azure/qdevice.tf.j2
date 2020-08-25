@@ -1,0 +1,85 @@
+resource "azurerm_public_ip" "qdevice_ip" {
+    name                    = "{{ name }}-qdevice-public-ip"
+    location                = azurerm_resource_group.rg.location
+    resource_group_name     = azurerm_resource_group.rg.name
+    allocation_method       = "Dynamic"
+    idle_timeout_in_minutes = 30
+
+    tags = {
+        workspace = "{{ name }}-cluster"
+    }
+}
+
+resource "azurerm_network_interface" "qdevice_nic" {
+    name                      = "{{ name }}-qdevice-nic"
+    location                  = azurerm_resource_group.rg.location
+    resource_group_name       = azurerm_resource_group.rg.name
+    network_security_group_id = azurerm_network_security_group.security_group.id
+
+    ip_configuration {
+        name                          = "ip-configuration-qdevice"
+        subnet_id                     = azurerm_subnet.subnet.id
+        private_ip_address_allocation = "static"
+        private_ip_address            = cidrhost(local.subnet_address_range, 6)
+        public_ip_address_id          = azurerm_public_ip.qdevice_ip.id
+    }
+
+    tags = {
+        workspace = "{{ name }}-cluster"
+    }
+}
+
+
+
+resource "azurerm_virtual_machine" "qdevice_vm" {
+    name                             = "{{ name }}-qdevice"
+    location                         = azurerm_resource_group.rg.location
+    resource_group_name              = azurerm_resource_group.rg.name
+    network_interface_ids            = [azurerm_network_interface.qdevice_nic.id]
+    vm_size                          = "{{ qdevice.vm_size }}"
+    delete_os_disk_on_termination    = true
+    delete_data_disks_on_termination = true
+
+    storage_os_disk {
+        name              = "{{ name }}-qdevice-os-disk"
+        caching           = "ReadWrite"
+        create_option     = "FromImage"
+        managed_disk_type = "Premium_LRS"
+    }
+
+    storage_image_reference {
+        id        = ""
+        publisher = "SUSE"
+        offer     = "SLES-SAP-BYOS"
+        sku       = {{ qdevice.sku }}
+        version   = "latest"
+    }
+
+    os_profile {
+        computer_name  = "{{ name }}-qdevice"
+        admin_username = "{{ qdevice.username }}"
+        admin_password = "{{ qdevice.password }}"
+    }
+
+    os_profile_linux_config {
+        disable_password_authentication = false
+    }
+
+
+    tags = {
+        workspace = "{{ name }}-cluster"
+    }
+}
+
+
+output "qdevice_private_ip" {
+    value = azurerm_network_interface.qdevice_nic.private_ip_address
+}
+
+output "qdevice_public_ip" {
+    value = azurerm_public_ip.qdevice_ip.ip_address
+}
+
+output "qdevice_name" {
+    value = azurerm_virtual_machine.qdevice_vm.name
+}

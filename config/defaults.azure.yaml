@@ -1,0 +1,35 @@
+name: ""      # name of the deployment
+provider: azure
+
+common:
+    region: westeurope
+    resource_group: ""
+    private_ip_range: 10.74.0.0/16
+    vm_size: Standard_E4s_v3
+    sku: 15
+    username: ""
+    password: ""
+    shared_storage_type: iscsi
+    reg_email: ""
+    reg_code: ""
+    network_domain: local
+    additional_repos: 
+        ha: http://download.opensuse.org/repositories/network:ha-clustering:sap-deployments:devel
+    additional_pkgs: []
+
+node:                        # cluster nodes specific options
+    count: 2                 # number of cluster nodes
+
+iscsi:                       # iscsi server specific options
+    device: "/dev/vdb"       # iSCSI device in server
+    disks: 0                 # Number of partitions attach to iscsi server. 0 means all
+    disk_size: 1             # size of the data disk in GB
+
+sbd: {}
+
+qdevice:                     # monitor specific config
+    enabled: false           # indicates if qdevice is used
+    options: ""
+
+examiner:
+    enabled: false

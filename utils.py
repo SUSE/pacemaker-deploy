@@ -146,6 +146,16 @@ def delete_from_parent(parent, props):
     for prop in props:
         del parent[prop]
 
+def sinkable_props_for_provider(name):
+    if name == "libvirt":
+        return ["source_image", "volume_name", "cpus", "memory", "disk_size"]
+
+    if name == "azure":
+        return ["vm_size", "sku"]
+
+    return []
+
+
 def sink(env):
     new_env = copy.deepcopy(env)
 
@@ -155,12 +165,8 @@ def sink(env):
         if value not in new_env["node"]:
             new_env["node"][value] = {}
 
-    # sink sbd.disk_size as its a special case
-    if "disk_size" not in new_env["sbd"]:
-        new_env["sbd"]["disk_size"] = copy.deepcopy(new_env["common"]["disk_size"])
-
     # sink all those properties
-    sinkable_props = ["source_image", "volume_name", "additional_repos", "additional_pkgs", "cpus", "memory", "disk_size"]
+    sinkable_props = sinkable_props_for_provider(env["provider"]) + ["username", "password", "additional_repos", "additional_pkgs"]
 
     # first from common to the rest of roles
     for role in ["node", "iscsi", "qdevice", "examiner"]:
@@ -179,6 +185,9 @@ def sink(env):
         del new_env["sbd"]
     else:
         del new_env["iscsi"]
+        if env["provider"] == "libvirt" and "disk_size" not in new_env["sbd"]:
+            new_env["sbd"]["disk_size"] = copy.deepcopy(new_env["common"]["disk_size"])
+
     
     if not new_env["qdevice"]["enabled"]:
         del new_env["qdevice"]
@@ -215,13 +224,17 @@ def get_hosts_from_env(env):
     for index in range(0, int(env["node"]["count"])):
         name = env[role][index + 1]["name"]
         host = env[role][index + 1]["public_ip"]
-        hosts.append( (role, index + 1, name, host) )
+        username = env[role][index + 1]["username"]
+        password = env[role][index + 1]["password"]
+        hosts.append( (role, index + 1, name, host, username, password) )
 
     # if there is a [iscsi, qdevice, examiner] device, copy salt directory and grains file
     for role in ["iscsi", "qdevice", "examiner"]:
         if role in env and "public_ip" in env[role]:
             name = env[role]["name"]
             host = env[role]["public_ip"]
-            hosts.append( (role, 0, name, host) )
+            username = env[role]["username"]
+            password = env[role]["password"]
+            hosts.append( (role, 0, name, host, username, password) )
 
     return hosts
