@@ -10,14 +10,16 @@ create_ssh_key:
     - name: yes y | sudo ssh-keygen -f /root/.ssh/id_rsa -C '{{grains["host"]}}' -N ''
 
 {% for name, ip in grains['machines'].items() if ip != me %}
+{% set username = grains['usernames'][name] %}
+{% set password = grains['credentials'][name] %}
 /srv/salt/copy_sshkey_to_{{ name }}:
     file.append:
         - text: |
             set node $argv
             set timeout -1
-            spawn ssh-copy-id -o "StrictHostKeyChecking=no" root@$node
+            spawn ssh-copy-id -o "StrictHostKeyChecking=no" {{username}}@$node
             expect "assword:"
-            send -- "linux\r"
+            send -- "{{password}}\r"
             expect eof
 
 copy_sshkey_to_{{ name }}:

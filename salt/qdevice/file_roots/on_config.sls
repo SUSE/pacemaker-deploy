@@ -10,3 +10,4 @@ include:
     - common.ip_workaround
 {% endif %}
     - common.hosts
+    - common.keys    

@@ -1,4 +1,4 @@
 include:
-    - common.keys
+    - common.update_keys
     - on_start.parted
     - iscsi.target

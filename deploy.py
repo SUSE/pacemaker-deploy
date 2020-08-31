@@ -36,6 +36,7 @@ def read_deployment_file(filename):
 
     # merge in environment
     env = utils.merge(defaults, user_data)
+
     # sink group options
     env = utils.sink(env)
 
@@ -333,7 +334,7 @@ def provision_task(name, host, username, password, phases):
     # Execute provisioning
     #
     for phase in phases:
-        res = ssh.run(username, password, host, f"sh /tmp/salt/provision.sh -{phase[0]} -l /var/log/provision.log")
+        res = ssh.run(username, password, host, f"sudo sh /tmp/salt/provision.sh -{phase[0]} -l /var/log/provision.log")
         if tasks.has_failed(res):
             logging.info(f"phase {phase} error -> [{name}={host}]")
             break
