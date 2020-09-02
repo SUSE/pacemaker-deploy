@@ -50,9 +50,9 @@ resource "azurerm_virtual_machine" "qdevice_vm" {
     storage_image_reference {
         id        = ""
         publisher = "SUSE"
-        offer     = "SLES-SAP-BYOS"
-        sku       = {{ qdevice.sku }}
-        version   = "latest"
+        offer     = "{{ qdevice.offer }}"
+        sku       = "{{ qdevice.sku }}"
+        version   = "{{ qdevice.version }}"
     }
 
     os_profile {

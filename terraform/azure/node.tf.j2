@@ -52,9 +52,9 @@ resource "azurerm_virtual_machine" "node{{ n }}_vm" {
     storage_image_reference {
         id        = ""
         publisher = "SUSE"
-        offer     = "SLES-SAP-BYOS"
-        sku       = {{ node[index].sku }}
-        version   = "latest"
+        offer     = "{{ node[index].offer }}"
+        sku       = "{{ node[index].sku }}"
+        version   = "{{ node[index].version }}"
     }
 
     os_profile {

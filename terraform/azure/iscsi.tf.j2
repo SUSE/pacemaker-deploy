@@ -48,9 +48,9 @@ resource "azurerm_virtual_machine" "iscsi_vm" {
     storage_image_reference {
         id        = ""
         publisher = "SUSE"
-        offer     = "SLES-SAP-BYOS"
-        sku       = {{ iscsi.sku }}
-        version   = "latest"
+        offer     = "{{ iscsi.offer }}"
+        sku       = "{{ iscsi.sku }}"
+        version   = "{{ iscsi.version }}"
     }
 
     storage_data_disk {

@@ -6,7 +6,9 @@ common:
     resource_group: ""
     private_ip_range: 10.74.0.0/16
     vm_size: Standard_E4s_v3
+    offer: SLES-BYOS
     sku: 15
+    version: latest
     username: ""
     password: ""
     shared_storage_type: iscsi

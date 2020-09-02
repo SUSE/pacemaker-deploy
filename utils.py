@@ -151,7 +151,7 @@ def sinkable_props_for_provider(name):
         return ["source_image", "volume_name", "cpus", "memory", "disk_size"]
 
     if name == "azure":
-        return ["vm_size", "sku"]
+        return ["vm_size", "offer", "sku", "version"]
 
     return []
 

@@ -50,9 +50,9 @@ resource "azurerm_virtual_machine" "examiner_vm" {
     storage_image_reference {
         id        = ""
         publisher = "SUSE"
-        offer     = "SLES-SAP-BYOS"
-        sku       = {{ examiner.sku }}
-        version   = "latest"
+        offer     = "{{ examiner.offer }}"
+        sku       = "{{ examiner.sku }}"
+        version   = "{{ examiner.version }}"
     }
 
     os_profile {
