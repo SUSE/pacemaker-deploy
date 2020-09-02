@@ -1,6 +1,10 @@
 base:
     '*':
         - on_start
+
+rendezvous:
+    '*':
+        - on_rendezvous
     
 config:
     '*':

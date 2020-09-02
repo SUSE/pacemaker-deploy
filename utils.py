@@ -168,11 +168,11 @@ def sink(env):
     # sink all those properties
     sinkable_props = sinkable_props_for_provider(env["provider"]) + ["username", "password", "additional_repos", "additional_pkgs"]
 
-    if env["provider"] == "libvirt" and "disk_size" not in new_env["sbd"]:
-        new_env["sbd"]["disk_size"] = copy.deepcopy(new_env["common"]["disk_size"])
+    #if env["provider"] == "libvirt" and "disk_size" not in new_env["sbd"]:
+    #    new_env["sbd"]["disk_size"] = copy.deepcopy(new_env["common"]["disk_size"])
 
     # first from common to the rest of roles
-    for role in ["node", "iscsi", "qdevice", "examiner"]:
+    for role in ["sbd", "node", "iscsi", "qdevice", "examiner"]:
         sink_entry(new_env["common"], new_env[role], sinkable_props)
 
     delete_from_parent(new_env["common"], sinkable_props)

@@ -21,11 +21,12 @@ node:                        # cluster nodes specific options
     count: 2                 # number of cluster nodes
 
 iscsi:                       # iscsi server specific options
-    device: "/dev/sdc"       # iSCSI device in server
+    device: "/dev/sdc"       # iSCSI device in server/nodes
     disks: 0                 # Number of partitions attach to iscsi server. 0 means all
     disk_size: 1             # size of the data disk in GB
 
-sbd: {}
+sbd:
+    device: "/dev/sdc"       # device in nodes
 
 qdevice:                     # monitor specific config
     enabled: false           # indicates if qdevice is used

@@ -63,8 +63,6 @@ configure_salt_minion () {
 }
 
 install () {
-    #mv /tmp/salt /root || true
-
     # Get registration code
     reg_code=$(get_grain reg_code /tmp/salt/grains)
     # Check if salt-call is installed
@@ -87,7 +85,6 @@ install () {
     which salt-call || exit 1
 
     # Move salt grains to salt folder
-    #mkdir -p /etc/salt;mv /tmp/grains /etc/salt || true
     configure_salt_minion
 }
 
@@ -99,6 +96,16 @@ config () {
         --retcode-passthrough  \
         $(salt_output_colored) \
         state.highstate saltenv=config || exit 1
+}
+
+rendezvous () {
+    salt-call                  \
+        --local                \
+        --log-level=debug      \
+        --log-file-level=debug \
+        --retcode-passthrough  \
+        $(salt_output_colored) \
+        state.highstate saltenv=rendezvous || exit 1
 }
 
 start () {
@@ -126,6 +133,7 @@ from top to bottom in this help text.
 Supported Options (if no options are provided (excluding -l) all the steps will be executed):
   -i               Bootstrap salt installation and configuration. It will register to SCC channels if needed
   -c               Execute config operations (update hosts and hostnames, install support packages, etc)
+  -r               Execute rendezvous operations (synced ops)
   -s               Execute deployment operations (fire up corosync, pacemaker, etc)
   -d               Execute on destroy operations (deregistering systems, etc)
   -l [LOG_FILE]    Append the log output to the provided file
@@ -134,7 +142,7 @@ EOF
 }
 
 argument_number=0
-while getopts ":hicsdl:" opt; do
+while getopts ":hicrsdl:" opt; do
     argument_number=$((argument_number + 1))
     case $opt in
         h)
@@ -146,6 +154,9 @@ while getopts ":hicsdl:" opt; do
             ;;
         c)
             execute_config=1
+            ;;
+        r)
+            execute_rendezvous=1
             ;;
         s)
             execute_start=1
@@ -172,10 +183,12 @@ fi
 if [ $argument_number -eq 0 ]; then
     install
     config
+    rendezvous
     start
 else
     [[ -n $execute_install ]] && install
     [[ -n $execute_config ]] && config
+    [[ -n $execute_rendezvous ]] && rendezvous
     [[ -n $execute_start ]] && start
     [[ -n $execute_on_destroy ]] && on_destroy
 fi

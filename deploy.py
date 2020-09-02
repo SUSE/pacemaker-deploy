@@ -424,15 +424,17 @@ def provision_execute(name):
    
     clock.start()     
 
-    group1 = [ host for host in hosts ]
-    group2 = [ host for host in hosts if host[0] != "node" or "node01" in host[2]]
-    group3 = [ host for host in hosts if host[0] == "node" and "node01" not in host[2]]
+    group1 = [ host for host in hosts]
+    group2 = [ host for host in hosts]
+    group3 = [ host for host in hosts if host[0] != "node" or "node01" in host[2]]
+    group4 = [ host for host in hosts if host[0] == "node" and "node01" not in host[2]]
 
     provision_tasks1  = [(provision_task, name, host, username, password, ["install", "config"]) for role, index, name, host, username, password in group1]
-    provision_tasks2  = [(provision_task, name, host, username, password, ["start"])             for role, index, name, host, username, password in group2]
+    provision_tasks2  = [(provision_task, name, host, username, password, ["rendezvous"])        for role, index, name, host, username, password in group2]    
     provision_tasks3  = [(provision_task, name, host, username, password, ["start"])             for role, index, name, host, username, password in group3]
+    provision_tasks4  = [(provision_task, name, host, username, password, ["start"])             for role, index, name, host, username, password in group4]
 
-    stages = [provision_tasks1, provision_tasks2, provision_tasks3]
+    stages = [provision_tasks1, provision_tasks2, provision_tasks3, provision_tasks4]
 
     for stage in stages:
         logging.info(f"Running stage")

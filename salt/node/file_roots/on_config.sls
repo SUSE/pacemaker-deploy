@@ -14,5 +14,4 @@ include:
     - common.ip_workaround
 {% endif %}
     - common.hosts
-    - common.keys    
     - common.add_pillar_files

@@ -16,12 +16,17 @@ configure_file_roots:
                 config:
                     - /srv/salt
                     - /usr/share/salt-formulas/states
+                rendezvous:
+                    - /srv/salt
+                    - /usr/share/salt-formulas/states
                 base:
                     - /srv/salt
                     - /usr/share/salt-formulas/states
 
             pillar_roots:
                 config:
+                    - /srv/pillar
+                rendezvous:
                     - /srv/pillar
                 base:
                     - /srv/pillar

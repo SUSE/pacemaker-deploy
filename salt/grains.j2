@@ -68,7 +68,12 @@ credentials:
 
 sbd_disk_index: 1
 
-sbd_disk_device: "{{ "/dev/vdb" if common.shared_storage_type == "shared-disk" else iscsi.device }}"
+{% if "libvirt" == provider %}
+sbd_disk_device: "{{ sbd.device if common.shared_storage_type == "shared-disk" else "/dev/sdb" }}"
+{% else %}
+sbd_disk_device: "{{ sbd.device if common.shared_storage_type == "shared-disk" else iscsi.device }}"
+{% endif %}
+
 
 iscsi_enabled: {{ jsonify(true) if common.shared_storage_type == "iscsi" else jsonify(false) }}
 

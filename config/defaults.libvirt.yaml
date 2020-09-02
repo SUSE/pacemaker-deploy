@@ -29,10 +29,11 @@ node:                        # cluster nodes specific options
     disk_size: 64            # disk size in GB
 
 iscsi:                       # iscsi server specific options
-    device: "/dev/vdb"       # iSCSI device in server
+    device: "/dev/vdb"       # iSCSI device in server/nodes
     disks: 0                 # Number of partitions attach to iscsi server. 0 means all
 
-sbd: {}
+sbd:
+    device: "/dev/vdb"       # device in nodes
 
 qdevice:                     # monitor specific config
     enabled: false           # indicates if qdevice is used
