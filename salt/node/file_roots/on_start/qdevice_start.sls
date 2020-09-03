@@ -5,4 +5,7 @@
 corosync_qdevice:
     cmd.run:
         - name: crm cluster init qdevice --qnetd-hostname={{grains['qdevice_name'] }} -y
+        - retry:
+            attempts: 30
+            interval: 10        
 {% endif %}
