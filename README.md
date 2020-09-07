@@ -57,9 +57,17 @@ The keys currently available to be overriden are:
  - volume_name
  - additional_repos
  - additional_pkgs
+
+Additionally if the provider is __libvirt__:
  - cpus
  - memory
  - disk_size
+
+And if it is __azure__:
+ - vm_size
+ - offer
+ - sku
+ - version
 
 Not all the keys are mandatory, as can be seen in the [example deployment file](deployment.yaml.example). The deployment file provided is mixed with the [defaults config file](config/defaults.yaml) to have a value for every single key.
 This way, only keys that differ from defaults need to be specified.
