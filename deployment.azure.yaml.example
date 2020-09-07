@@ -1,0 +1,36 @@
+## This file deploys a three-node cluster on Azure
+## Given that it will be enriched/merged with defaults found in
+## config/defaults.azure.yaml, theres no need to specify every single key
+name: test_azure
+provider: azure
+
+common:
+    resource_group: MyResourceGroup
+    username: MyUsername
+    password: MyP4ssw0rd!
+    reg_email: john.doe@organization.com
+    reg_code: GIVEN-CODE-TO-JOHN
+    offer: sles-sap-15-sp2
+    sku: gen2
+    
+node:
+    count: 3
+
+    1:
+        additional_repos: 
+            my_repo: my_repo_url
+    
+    2:
+        additional_pkgs:
+            - my_package
+
+    3:
+        offer: SLES-BYOS
+        sku: 15
+
+qdevice:
+    enabled: false
+    options: "-s off"
+
+examiner:
+    enabled: false

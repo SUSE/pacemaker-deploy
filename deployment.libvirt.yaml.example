@@ -1,7 +1,7 @@
 ## This file deploys a three-node cluster on KVM
 ## Given that it will be enriched/merged with defaults found in
-## config/defaults.yaml, theres no need to specify every single key
-name: test
+## config/defaults.libvirt.yaml, theres no need to specify every single key
+name: test_libvirt
 provider: libvirt
 
 common:
@@ -28,3 +28,9 @@ node:
     3:
         volume_name: SLES4SAP-15_SP1
 
+qdevice:
+    enabled: false
+    options: "-s off"
+
+examiner:
+    enabled: false
