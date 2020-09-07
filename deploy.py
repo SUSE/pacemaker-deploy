@@ -432,9 +432,17 @@ def provision_execute(name):
     provision_tasks1  = [(provision_task, name, host, username, password, ["install", "config"]) for role, index, name, host, username, password in group1]
     provision_tasks2  = [(provision_task, name, host, username, password, ["rendezvous"])        for role, index, name, host, username, password in group2]    
     provision_tasks3  = [(provision_task, name, host, username, password, ["start"])             for role, index, name, host, username, password in group3]
-    provision_tasks4  = [(provision_task, name, host, username, password, ["start"])             for role, index, name, host, username, password in group4]
+    stages = [provision_tasks1, provision_tasks2, provision_tasks3]
 
-    stages = [provision_tasks1, provision_tasks2, provision_tasks3, provision_tasks4]
+    serialized_joining = False
+    if serialized_joining: #"qdevice" in env and env["qdevice"]["enabled"]:
+        for _, _, name, host, username, password in group4:
+            provision_tasks = [(provision_task, name, host, username, password, ["start"])]
+            stages.append(provision_tasks)
+    else:
+        provision_tasks = [(provision_task, name, host, username, password, ["start"]) for role, index, name, host, username, password in group4]
+        stages.append(provision_tasks)
+
 
     for stage in stages:
         logging.info(f"Running stage")
@@ -532,7 +540,7 @@ def destroy_task(name, host, username, password):
     """
     Destroys the provisioning in a given host.
     """
-    res = ssh.run(username, password, host, f"sh /tmp/salt/provision.sh -d -l /var/log/destroying.log")
+    res = ssh.run(username, password, host, f"sudo sh /tmp/salt/provision.sh -d -l /var/log/destroying.log")
         
     logging.info(f"Provision destroy on [{name}={host}]")
  
