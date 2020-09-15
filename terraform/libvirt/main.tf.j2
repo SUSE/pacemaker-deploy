@@ -19,8 +19,8 @@ locals {
 {% if common.public_bridge == "" %}
 resource "libvirt_network" "public_network" {
     count     = 1
-    name      = "${terraform.workspace}-public"
-    bridge    = "${terraform.workspace}-pb-br"
+    name      = "{{ name }}-public"
+    bridge    = "{{ name }}-pb-br"
     mode      = "nat"
     addresses = [ "{{ common.public_ip_range }}" ]
     dhcp {
@@ -35,8 +35,8 @@ resource "libvirt_network" "public_network" {
 
 resource "libvirt_network" "private_network" {
     count     = 1
-    name      = "${terraform.workspace}-private"
-    bridge    = "${terraform.workspace}-pr-br"
+    name      = "{{ name }}-private"
+    bridge    = "{{ name }}-pr-br"
     mode      = "none"
     addresses = [ "{{ common.private_ip_range }}" ]
     dhcp {
