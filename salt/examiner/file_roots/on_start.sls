@@ -1,8 +1,5 @@
 {% set sle_version = grains['osrelease_info'][0] %}
 
-include:
-  - common.update_keys
-
 install_examiner_packages:
     pkg.latest:
         - pkgs:

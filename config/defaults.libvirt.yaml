@@ -1,6 +1,9 @@
 name: ""      # name of the deployment
 provider: libvirt
 
+debug:
+    serialized_join: true
+
 common:                                 # generic infrastructure settings
     qemu_uri: qemu:///system            # qemu uri for the KVM hypervisor
     storage_pool: default               # the pool where the volume images are stored

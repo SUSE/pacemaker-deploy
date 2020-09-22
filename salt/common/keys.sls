@@ -1,31 +1,18 @@
-{% set me = grains['host_ip'] %}
+create_ssh_folder:
+    file.directory:
+        - name: /root/.ssh
+        - user: root
+        - mode: "0755"
+        - makedirs: True
 
-install_keys_packages:
-    pkg.latest:
-        - pkgs:
-            - expect
+populate_ssh_folder:
+    file.recurse:
+        - name: /root/.ssh
+        - source: salt://key
+        - include_empty: True
+        - file_mode: "0600"
 
-create_ssh_key:
-  cmd.run:
-    - name: yes y | sudo ssh-keygen -f /root/.ssh/id_rsa -C '{{grains["host"]}}' -N ''
-
-{% for name, ip in grains['machines'].items() if ip != me %}
-{% set username = grains['usernames'][name] %}
-{% set password = grains['credentials'][name] %}
-/srv/salt/copy_sshkey_to_{{ name }}:
-    file.append:
-        - text: |
-            set node $argv
-            set timeout -1
-            spawn ssh-copy-id -o "StrictHostKeyChecking=no" {{username}}@$node
-            expect "assword:"
-            send -- "{{password}}\r"
-            expect eof
-
-copy_sshkey_to_{{ name }}:
+populate_ssh_authorized_keys:
     cmd.run:
-        #- name: expect -f /srv/salt/copy_sshkey_to_{{ name }} {{ ip }}
-        - name: expect -f /srv/salt/copy_sshkey_to_{{ name }} {{ name }}
-        - require:
-            - /srv/salt/copy_sshkey_to_{{ name }}
-{% endfor %}
+        - name: |
+            cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys

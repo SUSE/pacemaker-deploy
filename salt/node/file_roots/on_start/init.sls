@@ -1,5 +1,4 @@
 include:
-    - common.update_keys
 {% if grains['provider'] in ['aws', 'azure', 'gcp'] %}
     - on_start.network
 {% endif %}

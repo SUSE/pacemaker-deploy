@@ -254,6 +254,20 @@ def provision_render(name):
 
     logging.info("OK\n")
 
+    #
+    # Generating ssh key for the cluster
+    #
+    logging.info("[X] Generating cluster key...")
+
+    res = tasks.run(f"yes y | ssh-keygen -f {path_render}/id_rsa -C 'Cluster Master Key' -N ''")
+    if tasks.has_failed(res):
+        logging.critical(f"Cannot create cluster key")
+        logging.critical(tasks.get_stderr(res))
+        return res
+
+
+    logging.info("OK\n")
+
     return tasks.success()
 
 
@@ -284,6 +298,9 @@ def upload(name):
     logging.info("[X] Uploading files...")
 
     for role, _, name, host, username, password in utils.get_hosts_from_env(env):
+        command = f"rm -rf /tmp/salt"
+        ssh.run(username, password, host, command)
+
         command = f"mkdir /tmp/salt"
         res = ssh.run(username, password, host, command)
         if tasks.has_failed(res):
@@ -294,7 +311,14 @@ def upload(name):
         command = f"mkdir /tmp/salt/file_roots"
         res = ssh.run(username, password, host, command)
         if tasks.has_failed(res):
-            logging.info(f"Cannot create directory structure on [{name}={host}]")
+            logging.info(f"Cannot create file_roots directory on [{name}={host}]")
+            logging.info(tasks.get_stderr(res))
+            return res
+
+        command = f"mkdir /tmp/salt/file_roots/key"
+        res = ssh.run(username, password, host, command)
+        if tasks.has_failed(res):
+            logging.info(f"Cannot create key directory on [{name}={host}]")
             logging.info(tasks.get_stderr(res))
             return res
 
@@ -309,9 +333,11 @@ def upload(name):
         uploads.append( (name, host, username, password, f"{path_deployment_provision}/{name}.grains", "/tmp/salt/grains") )
         uploads.append( (name, host, username, password, f"{path_provision}/{role}/file_roots", f"/tmp/salt/") )
         uploads.append( (name, host, username, password, f"{path_provision}/common", "/tmp/salt/file_roots/") )
-        uploads.append( (name, host, username, password, f"{path_provision}/{role}/pillar_roots", f"/tmp/salt/file_roots") )
+        uploads.append( (name, host, username, password, f"{path_provision}/{role}/pillar_roots", f"/tmp/salt/file_roots/") )
+        uploads.append( (name, host, username, password, f"{path_deployment_provision}/id_rsa", "/tmp/salt/file_roots/key/") )
+        uploads.append( (name, host, username, password, f"{path_deployment_provision}/id_rsa.pub", "/tmp/salt/file_roots/key/") )
         
-
+        
     upload_tasks  = [threading.Thread(target=upload_task, args=(name, host, username, password, origin, destiny)) for name, host, username, password, origin, destiny in uploads]
 
     # Execute upload in parallel
@@ -425,23 +451,21 @@ def provision_execute(name):
     clock.start()     
 
     group1 = [ host for host in hosts]
-    group2 = [ host for host in hosts]
-    group3 = [ host for host in hosts if host[0] != "node" or "node01" in host[2]]
-    group4 = [ host for host in hosts if host[0] == "node" and "node01" not in host[2]]
+    group2 = [ host for host in hosts if host[0] != "node" or "node01" in host[2]]
+    group3 = [ host for host in hosts if host[0] == "node" and "node01" not in host[2]]
 
     provision_tasks1  = [(provision_task, name, host, username, password, ["install", "config"]) for role, index, name, host, username, password in group1]
-    provision_tasks2  = [(provision_task, name, host, username, password, ["rendezvous"])        for role, index, name, host, username, password in group2]    
-    provision_tasks3  = [(provision_task, name, host, username, password, ["start"])             for role, index, name, host, username, password in group3]
-    stages = [provision_tasks1, provision_tasks2, provision_tasks3]
+    provision_tasks2  = [(provision_task, name, host, username, password, ["start"])             for role, index, name, host, username, password in group2]
+    stages = [provision_tasks1, provision_tasks2]
 
-    serialized_joining = False
-    if serialized_joining: #"qdevice" in env and env["qdevice"]["enabled"]:
-        for _, _, name, host, username, password in group4:
-            provision_tasks = [(provision_task, name, host, username, password, ["start"])]
-            stages.append(provision_tasks)
+    serialized_joining = env["debug"]["serialized_join"]
+    if serialized_joining:
+        for _, _, name, host, username, password in group3:
+            new_provision_task = [(provision_task, name, host, username, password, ["start"])]
+            stages.append(new_provision_task)
     else:
-        provision_tasks = [(provision_task, name, host, username, password, ["start"]) for role, index, name, host, username, password in group4]
-        stages.append(provision_tasks)
+        new_provision_task = [(provision_task, name, host, username, password, ["start"]) for role, index, name, host, username, password in group3]
+        stages.append(new_provision_task)
 
 
     for stage in stages:

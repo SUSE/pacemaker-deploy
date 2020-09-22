@@ -1,6 +1,3 @@
-include:
-    - common.update_keys
-
 install_qnetd_packages:
     pkg.latest:
         - pkgs:

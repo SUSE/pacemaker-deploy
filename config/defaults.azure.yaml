@@ -1,6 +1,9 @@
 name: ""      # name of the deployment
 provider: azure
 
+debug:
+    serialized_join: true
+
 common:
     region: westeurope
     resource_group: ""
