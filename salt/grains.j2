@@ -37,34 +37,6 @@ machines:
     {{ examiner.name }}: {{ examiner.private_ip }}
 {%- endif %}
 
-usernames:
-{%- for k in node if not k == 'count' %}
-    {{ node[k].name }}: {{ node[k].username }}
-{%- endfor %}
-{%- if common.shared_storage_type == "iscsi" %}
-    {{ iscsi.name }}: {{ iscsi.username }}
-{%- endif %}
-{%- if "qdevice" in env and qdevice.enabled %}
-    {{ qdevice.name }}: {{ qdevice.username }}
-{%- endif %}
-{%- if "examiner" in env and examiner.enabled %}
-    {{ examiner.name }}: {{ examiner.username }}
-{%- endif %}
-
-credentials:
-{%- for k in node if not k == 'count' %}
-    {{ node[k].name }}: {{ node[k].password }}
-{%- endfor %}
-{%- if common.shared_storage_type == "iscsi" %}
-    {{ iscsi.name }}: {{ iscsi.password }}
-{%- endif %}
-{%- if "qdevice" in env and qdevice.enabled %}
-    {{ qdevice.name }}: {{ qdevice.password }}
-{%- endif %}
-{%- if "examiner" in env and examiner.enabled %}
-    {{ examiner.name }}: {{ examiner.password }}
-{%- endif %}
-
 
 sbd_disk_index: 1
 
