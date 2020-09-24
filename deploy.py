@@ -70,6 +70,12 @@ def prepare(**env):
     #
     logging.info("[X] Creating deployment directory...")
 
+    # Create deployment if has not been done previously
+    try:
+        os.mkdir("./deployed")
+    except:
+        pass
+
     os.mkdir(path)
 
     # save the environment

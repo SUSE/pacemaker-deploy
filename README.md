@@ -13,6 +13,11 @@ The deployment file is written in YAML and an example can be found in [deploymen
 
 - ```zypper install terraform sshpass python3-Jinja2 python3-PyYAML python3-docopt```
 
+Additionally, if you plan to use on libvirt:
+- ```zypper install terraform-provider-libvirt```
+
+Versions needed of these packages are those of Tumbleweed.
+
 # Use
 
 - ```deploy.py --help```
