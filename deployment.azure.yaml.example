@@ -12,7 +12,9 @@ common:
     reg_code: GIVEN-CODE-TO-JOHN
     offer: sles-sap-15-sp2
     sku: gen2
-    
+    authorized_keys_file: /home/<user_name>/.ssh/authorized_keys
+    public_key_file: /home/<user_name>/.ssh/id_rsa.pub
+
 node:
     count: 3
 

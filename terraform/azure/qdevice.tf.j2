@@ -62,7 +62,12 @@ resource "azurerm_virtual_machine" "qdevice_vm" {
     }
 
     os_profile_linux_config {
-        disable_password_authentication = false
+        disable_password_authentication = true
+
+        ssh_keys {
+            path     = "{{ qdevice.authorized_keys_file }}"
+            key_data = file("{{ qdevice.public_key_file }}")
+        }
     }
 
 
