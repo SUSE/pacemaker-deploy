@@ -13,13 +13,7 @@ include:
     - on_start.aws_add_credentials
     - on_start.aws_data_provider
 {%- endif %}
-{% if grains['qdevice_enabled'] %}
-    - on_start.qdevice_config
-{% endif %}
     - cluster
-{% if grains['qdevice_enabled'] %}
-    - on_start.qdevice_start
-{% endif %}
 {% if grains['examiner_enabled'] %}
     - on_start.examiner
 {% endif %}

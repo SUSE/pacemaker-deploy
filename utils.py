@@ -220,6 +220,16 @@ def get_log_level(loglevel, default):
 def get_hosts_from_env(env):
     hosts = []
 
+    # if there is a [iscsi, qdevice, examiner] device, copy salt directory and grains file
+    # and let them preceed the nodes in the hosts array
+    for role in ["iscsi", "qdevice", "examiner"]:
+        if role in env and "public_ip" in env[role]:
+            name = env[role]["name"]
+            host = env[role]["public_ip"]
+            username = env[role]["username"]
+            password = env[role]["password"]
+            hosts.append( (role, 0, name, host, username, password) )
+
     # nodes
     role = "node"
     for index in range(0, int(env["node"]["count"])):
@@ -228,14 +238,5 @@ def get_hosts_from_env(env):
         username = env[role][index + 1]["username"]
         password = env[role][index + 1]["password"]
         hosts.append( (role, index + 1, name, host, username, password) )
-
-    # if there is a [iscsi, qdevice, examiner] device, copy salt directory and grains file
-    for role in ["iscsi", "qdevice", "examiner"]:
-        if role in env and "public_ip" in env[role]:
-            name = env[role]["name"]
-            host = env[role]["public_ip"]
-            username = env[role]["username"]
-            password = env[role]["password"]
-            hosts.append( (role, 0, name, host, username, password) )
 
     return hosts

@@ -447,7 +447,11 @@ def provision_execute(name):
     for stage in stages:
         logging.info(f"Running stage")
         results = []
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        max_executors = len(hosts)
+        # The last stage should be synchronous
+        if stage == provision_tasks3:
+            max_executors = 1
+        with concurrent.futures.ThreadPoolExecutor(max_executors) as executor:
             futures = []
             for task in stage:
                 function, host_name, host_ip, username, password, parameters = task

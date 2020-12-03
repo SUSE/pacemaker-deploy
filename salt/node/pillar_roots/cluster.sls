@@ -19,6 +19,10 @@ cluster:
         device: /dev/watchdog
     sbd:
         device: {{ sbd_disk_device }}
+{% if grains['qdevice_qnetd_hostname'] is defined %}
+    qdevice:
+        qnetd_hostname: {{ grains['qdevice_qnetd_hostname'] }}
+{% endif %}
     ntp: pool.ntp.org
 {% if grains['provider'] == 'libvirt' %}
     sshkeys:
