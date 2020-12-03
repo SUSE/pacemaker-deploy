@@ -447,7 +447,16 @@ def provision_execute(name):
     for stage in stages:
         logging.info(f"Running stage")
         results = []
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        # provision_task1 and 2 are assynchronous.
+        max_executors = len(hosts)
+        # provision_task3 creates the qnetd node (if required)
+        # When the qnetd node exists, it initializes the cluster on node01
+        # When the cluster exists, it joins sequentially all other nodes.
+        # Those steps should be done one after another, so we reduce the
+        # number of executors to 1.
+        if stage == provision_tasks3:
+            max_executors = 1
+        with concurrent.futures.ThreadPoolExecutor(max_executors) as executor:
             futures = []
             for task in stage:
                 function, host_name, host_ip, username, password, parameters = task

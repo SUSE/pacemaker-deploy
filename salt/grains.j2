@@ -81,11 +81,7 @@ iscsi_name: "{{  iscsi.name if "iscsi" in env }}"
 
 iscsi_ip: "{{  iscsi.private_ip if "iscsi" in env }}"
 
-qdevice_enabled: {{ jsonify(qdevice.enabled) if "qdevice" in env else jsonify(false) }}
-
-qdevice_name: "{{  qdevice.name if "qdevice" in env }}"
-
-qdevice_ip: "{{  qdevice.private_ip if "qdevice" in env }}"
+qdevice_qnetd_hostname: "{{  qdevice.name if "qdevice" in env }}"
 
 examiner_enabled: {{ jsonify(examiner.enabled) if "examiner" in env else jsonify(false) }}
 
