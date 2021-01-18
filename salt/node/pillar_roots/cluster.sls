@@ -28,7 +28,6 @@ cluster:
     ntp: pool.ntp.org
 {% if grains['provider'] == 'libvirt' %}
     sshkeys:
-        overwrite: true
         password: linux
 {% endif %}
 #   resource_agents:
