@@ -209,7 +209,7 @@ def infrastructure_execute(name):
         if v["value"]:
             key, _, subkey = k.partition("_")
             if "node" in key:
-                key, _, index = key.partition("0")
+                key, index = key[:len("node")], key[len("node"):]
                 env[key][int(index)][subkey] = v["value"]
             else:
                 env[key][subkey] = v["value"]
